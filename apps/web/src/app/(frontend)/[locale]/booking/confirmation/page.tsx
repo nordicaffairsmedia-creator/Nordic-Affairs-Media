@@ -1,0 +1,197 @@
+import type { Metadata } from 'next'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { isLocale } from '@/i18n/config'
+import { getDictionary } from '@/i18n/getDictionary'
+import { bookingApiUrl } from '@/lib/booking'
+import { formatMinor, type PublicOrder } from '@/lib/bookingTypes'
+import { formatEventDate, intlLocales } from '@/lib/format'
+import { textParam } from '@/lib/listings'
+import { href, routes } from '@/lib/site'
+
+// Personal page: never cached, never indexed.
+export const dynamic = 'force-dynamic'
+export const dynamicParams = true
+export const metadata: Metadata = { robots: { index: false, follow: false } }
+
+type Props = {
+  params: Promise<{ locale: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}
+
+async function loadOrder(ref: string, token: string): Promise<PublicOrder | null> {
+  if (!bookingApiUrl || !ref || !token) return null
+  const res = await fetch(
+    `${bookingApiUrl}/orders/${encodeURIComponent(ref)}?t=${encodeURIComponent(token)}`,
+    {
+      cache: 'no-store',
+      // Server-to-server: lets the API tell this page apart from visitors for rate limiting.
+      headers: process.env.INTERNAL_API_KEY ? { 'x-internal-key': process.env.INTERNAL_API_KEY } : {},
+    },
+  ).catch(() => null)
+  return res?.ok ? ((await res.json()) as PublicOrder) : null
+}
+
+/**
+ * Where Stripe sends the buyer after paying, and where the email's "view tickets"
+ * link points. While Stripe's confirmation is on its way the page refreshes itself.
+ */
+export default async function ConfirmationPage({ params, searchParams }: Props) {
+  const { locale } = await params
+  if (!isLocale(locale)) notFound()
+  const t = getDictionary(locale)
+  const sp = await searchParams
+  const ref = textParam(sp.order, 20)
+  const token = textParam(sp.t, 64)
+  const order = await loadOrder(ref, token)
+  if (!order) notFound()
+
+  const money = (n: number) => formatMinor(n, order.currency, intlLocales[locale])
+  const date = formatEventDate(order.event.startsAt, locale)
+  const fileLink = (file: string) =>
+    `${bookingApiUrl}/orders/${encodeURIComponent(order.ref)}/${file}?t=${encodeURIComponent(token)}`
+
+  if (order.status === 'pending') {
+    return (
+      <div className="container-measure py-20 text-center">
+        <meta httpEquiv="refresh" content="3" />
+        <span
+          className="mx-auto block size-10 animate-spin rounded-pill border-2 border-rule border-t-ink"
+          aria-hidden="true"
+        />
+        <h1 className="mt-8 text-h2">{t.pendingTitle}</h1>
+        <p className="mt-4 text-slate" role="status">
+          {t.pendingBody}
+        </p>
+        <p className="meta mt-6">
+          {t.orderRef}: {order.ref}
+        </p>
+      </div>
+    )
+  }
+
+  if (order.status !== 'paid' && order.status !== 'partially_refunded') {
+    return (
+      <div className="container-measure py-20">
+        <h1 className="text-h1">
+          {order.status === 'refunded' ? t.statusRefunded : t.failedTitle}
+        </h1>
+        <p className="mt-5 font-text text-deck text-charcoal">{t.failedBody}</p>
+        <Link
+          href={href(locale, routes.event(order.event.slug))}
+          className="mt-8 inline-flex min-h-11 items-center bg-ink px-5 font-ui text-caption font-semibold text-snow"
+        >
+          {order.event.title}
+        </Link>
+      </div>
+    )
+  }
+
+  const live = order.tickets.filter((tk) => tk.status !== 'cancelled')
+
+  return (
+    <div className="container-wide pb-20">
+      <header className="border-b border-rule-strong pt-10 pb-8 md:pt-16">
+        <span className="eyebrow text-brass-text">✓ {t.confirmTitle}</span>
+        <h1 className="mt-3 text-h1">{order.event.title}</h1>
+        <p className="meta mt-3">
+          {date.full}
+          {order.event.venue ? ` · ${order.event.venue}` : ''}
+        </p>
+        <p className="mt-5 text-charcoal">
+          {t.emailSentTo} <strong>{order.email}</strong>.
+        </p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <a
+            href={fileLink('tickets.pdf')}
+            className="inline-flex min-h-11 items-center bg-ink px-5 font-ui text-caption font-semibold text-snow hover:bg-fjord-deep"
+          >
+            {t.downloadTickets}
+          </a>
+          {order.total > 0 ? (
+            <a
+              href={fileLink('receipt.pdf')}
+              className="inline-flex min-h-11 items-center border border-ink px-5 font-ui text-caption font-semibold hover:bg-ink hover:text-snow"
+            >
+              {t.downloadReceipt}
+            </a>
+          ) : null}
+        </div>
+      </header>
+
+      <div className="mt-10 grid gap-12 lg:grid-cols-12">
+        <section aria-label={t.yourTickets} className="lg:col-span-8">
+          <h2 className="eyebrow text-slate">{t.yourTickets}</h2>
+          <p className="meta mt-2">{t.showAtEntrance}</p>
+          <ul className="mt-6 grid gap-6 sm:grid-cols-2">
+            {live.map((tk, i) => (
+              <li key={tk.code} className="border border-rule bg-snow p-5 text-center">
+                <p className="font-ui text-caption font-semibold">{tk.tier}</p>
+                <p className="meta">
+                  {tk.holder} · {i + 1}/{live.length}
+                </p>
+                {tk.qr ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- data URL from the API, not an optimisable asset
+                  <img
+                    src={tk.qr}
+                    alt={`QR ${tk.code}`}
+                    width={220}
+                    height={220}
+                    className="mx-auto mt-4"
+                  />
+                ) : null}
+                <p className="mt-2 font-mono text-[0.6875rem] tracking-wider text-slate">
+                  {tk.code}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <aside className="lg:col-span-4">
+          <h2 className="eyebrow text-slate">
+            {t.orderRef}: {order.ref}
+          </h2>
+          <dl className="mt-4 space-y-2 border-t border-rule pt-4 font-ui text-caption">
+            {order.items.map((it) => (
+              <div key={it.tierId} className="flex justify-between gap-4">
+                <dt>
+                  {it.quantity} × {it.name}
+                </dt>
+                <dd>{money(it.unitPrice * it.quantity)}</dd>
+              </div>
+            ))}
+            {order.discount ? (
+              <div className="flex justify-between gap-4">
+                <dt>
+                  {t.discount}
+                  {order.promoCode ? ` (${order.promoCode})` : ''}
+                </dt>
+                <dd>−{money(order.discount)}</dd>
+              </div>
+            ) : null}
+            {order.fees ? (
+              <div className="flex justify-between gap-4">
+                <dt>{t.fees}</dt>
+                <dd>{money(order.fees)}</dd>
+              </div>
+            ) : null}
+            <div className="flex justify-between gap-4 border-t border-rule pt-2 font-semibold">
+              <dt>{t.total}</dt>
+              <dd>{money(order.total)}</dd>
+            </div>
+            <p className="meta">
+              {t.vatIncluded}: {money(order.vatAmount)}
+            </p>
+          </dl>
+          <Link
+            href={href(locale, '/account')}
+            className="mt-8 inline-block font-ui text-meta font-semibold text-fjord hover:underline"
+          >
+            {t.myBookings} →
+          </Link>
+        </aside>
+      </div>
+    </div>
+  )
+}
