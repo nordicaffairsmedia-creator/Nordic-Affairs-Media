@@ -1,0 +1,22 @@
+{
+  "name": "nordic-affairs-media",
+  "private": true,
+  "description": "Nordic Affairs Media — editorial website + ticket booking platform (Entraiot Solutions, ENT-NAM-2026)",
+  "workspaces": [
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "dev": "npm run dev -w @nam/web",
+    "dev:api": "npm run dev -w @nam/api",
+    "build": "npm run build -w @nam/web && npm run build -w @nam/api",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2"
+  }
+}
