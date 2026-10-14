@@ -1,0 +1,484 @@
+@import 'tailwindcss';
+
+/*
+ * NORDIC AFFAIRS MEDIA — DESIGN TOKENS
+ * ------------------------------------------------------------------
+ * Direction: Scandinavian editorial. Paper-white ground, near-black ink,
+ * one cold accent (fjord blue) for interaction, one warm accent (brass)
+ * used sparingly as a nod to the South Indian connection — thin rules,
+ * small markers, never large fills.
+ *
+ * One theme: the agency's navy (client request, October 2026).
+ *
+ * Contrast (WCAG 2.2) on the navy ground: ink 14.4:1, slate 7.6:1, fjord 7.3:1,
+ * brass-text 8.2:1, mist 4.8:1. Buttons: navy text on near-white 12.8:1, on blue 4.7:1.
+ */
+
+@theme {
+  /* Colour — Nordic Affairs Media navy, taken from the agency's existing site
+     (#0E2340 ground, #539AE6 accent blue) with the gold of the logo. Token names are
+     kept from the first light theme: "paper" is the page, "snow" a raised surface,
+     "ink" the main text colour. */
+  --color-paper: #0e2440;
+  --color-snow: #132d4f;
+  --color-ink: #f3f6fa;
+  --color-charcoal: #d6dfe9;
+  --color-slate: #a8b7c7;
+  --color-mist: #7d90a6;
+  --color-rule: #26446b;
+  --color-rule-strong: #c9d5e2;
+  --color-fjord: #7ab6f2;
+  --color-fjord-deep: #539ae6;
+  --color-fjord-wash: #183a63;
+  --color-brass: #c9a14a;
+  --color-brass-text: #dcb766;
+  --color-alert: #f2917c;
+  --color-placeholder: #fb923c;
+  --color-navy-deep: #081a30;
+  --color-whatsapp: #25d366;
+
+  /* Breakpoints: 320–430 phones are the base; these are where layout changes */
+  --breakpoint-sm: 30rem; /* 480 */
+  --breakpoint-md: 48rem; /* 768 */
+  --breakpoint-lg: 64rem; /* 1024 */
+  --breakpoint-xl: 80rem; /* 1280 */
+  --breakpoint-2xl: 90rem; /* 1440 */
+
+  /* Containers */
+  --container-measure: 40rem; /* ~68 characters of body copy */
+  --container-wide: 76rem;
+  --container-max: 88rem;
+
+  /* Radius: square-cut editorial. Pills only for tags/badges. */
+  --radius-none: 0;
+  --radius-xs: 2px;
+  --radius-pill: 999px;
+
+  /* Motion */
+  --ease-editorial: cubic-bezier(0.2, 0.7, 0.1, 1);
+  --duration-quick: 160ms;
+  --duration-calm: 420ms;
+
+  /* Type scale (fluid). Line-heights paired with each size. */
+  --text-eyebrow: 0.75rem;
+  --text-eyebrow--line-height: 1rem;
+  --text-eyebrow--letter-spacing: 0.14em;
+  --text-meta: 0.8125rem;
+  --text-meta--line-height: 1.25rem;
+  --text-caption: 0.875rem;
+  --text-caption--line-height: 1.35rem;
+  --text-body: 1.0625rem;
+  --text-body--line-height: 1.7;
+  --text-article: clamp(1.125rem, 1.05rem + 0.25vw, 1.25rem);
+  --text-article--line-height: 1.72;
+  --text-deck: clamp(1.1875rem, 1.05rem + 0.5vw, 1.4375rem);
+  --text-deck--line-height: 1.45;
+  --text-h3: clamp(1.25rem, 1.1rem + 0.5vw, 1.5rem);
+  --text-h3--line-height: 1.25;
+  --text-h2: clamp(1.625rem, 1.3rem + 1.1vw, 2.25rem);
+  --text-h2--line-height: 1.15;
+  --text-h1: clamp(2.25rem, 1.6rem + 2.6vw, 4rem);
+  --text-h1--line-height: 1.05;
+  --text-display: clamp(2.75rem, 1.7rem + 4.4vw, 5.75rem);
+  --text-display--line-height: 0.98;
+  --text-display--letter-spacing: -0.02em;
+}
+
+/*
+ * Light theme — chosen with the sun/moon button in the header and remembered in the
+ * visitor's browser. Navy is the default; these values replace it only when
+ * <html data-theme="light"> is set. Dark bands (footer, page titles) turn into a
+ * slightly deeper paper so their text stays readable.
+ */
+:root[data-theme='light'] {
+  --color-paper: #f7f5f0;
+  --color-snow: #ffffff;
+  --color-ink: #121414;
+  --color-charcoal: #2b2f31;
+  --color-slate: #5c6366;
+  --color-mist: #6b7275;
+  --color-rule: #dcd8cf;
+  --color-rule-strong: #121414;
+  --color-fjord: #1f4e68;
+  --color-fjord-deep: #163a4e;
+  --color-fjord-wash: #e6edf0;
+  --color-brass: #a87a32;
+  --color-brass-text: #835c20;
+  --color-alert: #9e3a28;
+  --color-placeholder: #c2410c;
+  --color-navy-deep: #ebe6dc;
+  color-scheme: light;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+/*
+ * Font families resolve per language. Tamil and Malayalam use Noto (best script
+ * coverage and readability); Latin languages use Newsreader + Hanken Grotesk.
+ * The `--font-*-src` variables are set by next/font in the root layout.
+ */
+:root {
+  --nam-display: var(--font-newsreader-src), 'Iowan Old Style', Georgia, serif;
+  --nam-text: var(--font-newsreader-src), Georgia, serif;
+  --nam-ui: var(--font-hanken-src), ui-sans-serif, system-ui, sans-serif;
+}
+:root:lang(ta) {
+  --nam-display: var(--font-noto-serif-tamil-src), var(--font-newsreader-src), serif;
+  --nam-text: var(--font-noto-serif-tamil-src), var(--font-newsreader-src), serif;
+  --nam-ui: var(--font-noto-sans-tamil-src), var(--font-hanken-src), sans-serif;
+}
+:root:lang(ml) {
+  --nam-display: var(--font-noto-serif-malayalam-src), var(--font-newsreader-src), serif;
+  --nam-text: var(--font-noto-serif-malayalam-src), var(--font-newsreader-src), serif;
+  --nam-ui: var(--font-noto-sans-malayalam-src), var(--font-hanken-src), sans-serif;
+}
+
+@theme inline {
+  --font-display: var(--nam-display);
+  --font-text: var(--nam-text);
+  --font-ui: var(--nam-ui);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-paper text-ink font-ui text-body antialiased;
+  }
+  /* Indic scripts need more vertical room and must never be tracked out. */
+  :lang(ta) body,
+  :lang(ml) body {
+    line-height: 1.85;
+  }
+  :lang(ta) .eyebrow,
+  :lang(ml) .eyebrow {
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-display text-ink;
+    font-weight: 500;
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  a {
+    color: inherit;
+    text-underline-offset: 0.18em;
+    text-decoration-thickness: 1px;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-fjord);
+    outline-offset: 3px;
+  }
+  ::selection {
+    background: var(--color-fjord-wash);
+    color: var(--color-ink);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .container-max {
+    @apply mx-auto w-full max-w-(--container-max) px-4 md:px-8 lg:px-10;
+  }
+  .container-wide {
+    @apply mx-auto w-full max-w-(--container-wide) px-4 md:px-8;
+  }
+  .container-measure {
+    @apply mx-auto w-full max-w-(--container-measure) px-4;
+  }
+  .eyebrow {
+    @apply font-ui text-eyebrow font-semibold uppercase tracking-(--text-eyebrow--letter-spacing);
+  }
+  .meta {
+    @apply font-ui text-meta text-slate;
+  }
+  /* Headline link: underline grows on hover; image zooms ~2% in .story cards */
+  .story-link {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-size: 0% 1px;
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    transition: background-size var(--duration-calm) var(--ease-editorial);
+    text-decoration: none;
+  }
+  .story:hover .story-link,
+  .story-link:focus-visible {
+    background-size: 100% 1px;
+  }
+  .story-media img {
+    transition: transform var(--duration-calm) var(--ease-editorial);
+  }
+  .story:hover .story-media img {
+    transform: scale(1.02);
+  }
+  .rule-top {
+    @apply border-t border-rule-strong pt-3;
+  }
+  /* Long-form article body (Lexical rich text output) */
+  .prose-article {
+    @apply font-text text-article text-charcoal;
+  }
+  .prose-article > * + * {
+    margin-top: 1.25em;
+  }
+  .prose-article h2 {
+    @apply text-h3 mt-12;
+  }
+  .prose-article h3 {
+    @apply font-ui text-body mt-10 font-semibold;
+  }
+  .prose-article a {
+    @apply text-fjord underline;
+  }
+  .prose-article blockquote {
+    @apply font-display text-h3 text-ink my-10 border-l-2 border-brass pl-6;
+    font-style: italic;
+  }
+  .prose-article ul,
+  .prose-article ol {
+    padding-left: 1.25em;
+  }
+  .prose-article ul {
+    list-style: disc;
+  }
+  .prose-article ol {
+    list-style: decimal;
+  }
+  .prose-article li + li {
+    margin-top: 0.4em;
+  }
+  .prose-article > p:first-child::first-letter {
+    @apply font-display text-ink;
+    float: left;
+    font-size: 3.6em;
+    line-height: 0.85;
+    padding: 0.08em 0.1em 0 0;
+  }
+  :lang(ta) .prose-article > p:first-child::first-letter,
+  :lang(ml) .prose-article > p:first-child::first-letter {
+    float: none;
+    font-size: inherit;
+    padding: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Scroll motion (components/motion/ScrollEffects.tsx). Elements are only hidden
+ * once the script marks them [data-pending], so the page is complete without JS.
+ * ------------------------------------------------------------------------- */
+[data-reveal] {
+  transition:
+    opacity 0.9s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.9s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition-delay: calc(var(--d, 0) * 90ms);
+}
+[data-reveal][data-pending] {
+  opacity: 0;
+}
+[data-reveal='up'][data-pending] {
+  transform: translate3d(0, 36px, 0);
+}
+[data-reveal='left'][data-pending] {
+  transform: translate3d(-44px, 0, 0);
+}
+[data-reveal='right'][data-pending] {
+  transform: translate3d(44px, 0, 0);
+}
+[data-reveal='zoom'][data-pending] {
+  transform: scale(0.93);
+}
+[data-parallax] {
+  transform: translate3d(0, var(--py, 0px), 0) scale(var(--ps, 1));
+  will-change: transform;
+}
+
+/* One-time entrance for the page title. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 24px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise-in {
+  animation: rise-in 1s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--d, 0) * 120ms);
+}
+
+/* A photo slowly "settles" into place, like a camera finding focus. */
+@keyframes settle {
+  from {
+    filter: saturate(0.6) brightness(0.85);
+  }
+  to {
+    filter: none;
+  }
+}
+[data-reveal]:not([data-pending]) .settle {
+  animation: settle 1.6s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal],
+  .rise-in,
+  .settle {
+    transition: none !important;
+    animation: none !important;
+  }
+  [data-parallax] {
+    transform: none !important;
+  }
+}
+
+/* ── Nora, the website host: luxury chat panel ─────────────────────────── */
+@keyframes nora-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes nora-spin { to { transform: rotate(360deg); } }
+@keyframes nora-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(201 162 75 / 0.45); }
+  50% { box-shadow: 0 0 0 12px rgb(201 162 75 / 0); }
+}
+@keyframes nora-shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+@keyframes nora-dot {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.35; }
+  40% { transform: translateY(-4px); opacity: 1; }
+}
+.nora-in { animation: nora-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.nora-ring { animation: nora-spin 6s linear infinite; }
+.nora-breathe { animation: nora-breathe 2.8s ease-out infinite; }
+.nora-dot { animation: nora-dot 1.2s ease-in-out infinite; }
+.nora-shimmer {
+  background: linear-gradient(90deg, rgb(255 255 255 / 0.45) 0%, #e9cf8a 50%, rgb(255 255 255 / 0.45) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: nora-shimmer 2.4s linear infinite;
+}
+.nora-scroll { scrollbar-width: thin; scrollbar-color: rgb(201 162 75 / 0.35) transparent; }
+@media (prefers-reduced-motion: reduce) {
+  .nora-in, .nora-ring, .nora-breathe, .nora-dot, .nora-shimmer { animation: none; }
+}
+
+/* ── Staff suite: a calm, product-grade look (Apple / Tesla school) ──
+   Near-black canvas, hairline borders, one accent blue, white pill for the main action,
+   system typeface (SF Pro on Apple devices, Inter elsewhere), big tight numbers. */
+.staff-ui {
+  --nam-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', var(--font-inter-src), 'Helvetica Neue', sans-serif;
+  --nam-text: -apple-system, BlinkMacSystemFont, 'SF Pro Text', var(--font-inter-src), 'Helvetica Neue', sans-serif;
+  --nam-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', var(--font-inter-src), 'Helvetica Neue', sans-serif;
+  --color-snow: #141416;
+  --color-paper: #0b0b0c;
+  --color-ink: #f5f5f7;
+  --color-charcoal: #e8e8ed;
+  --color-slate: #a1a1a6;
+  --color-mist: #86868b;
+  --color-rule: rgb(255 255 255 / 0.08);
+  --color-fjord: #2997ff;
+  --color-fjord-deep: #0a84ff;
+  --color-fjord-wash: rgb(10 132 255 / 0.14);
+  --color-alert: #ff453a;
+  font-family: var(--nam-ui);
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+.staff-ui :is(h1, h2, h3) {
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+.staff-ui .font-display {
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+.staff-ui .border.border-rule:is(.bg-snow, .bg-paper) {
+  border-radius: 1.25rem;
+  background: #141416;
+}
+.staff-ui table {
+  font-variant-numeric: tabular-nums;
+}
+.staff-ui table thead {
+  background: transparent;
+}
+.staff-ui table thead th {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: #86868b;
+}
+.staff-ui table tbody tr {
+  transition: background-color 0.2s;
+}
+.staff-ui table tbody tr:hover {
+  background: rgb(255 255 255 / 0.025);
+}
+.staff-ui :is(input:not([type='checkbox']):not([type='radio']):not([type='file']), select, textarea) {
+  border-radius: 0.75rem;
+  background: #1c1c1e;
+  border-color: rgb(255 255 255 / 0.1);
+}
+.staff-ui :is(input, select, textarea):focus-visible {
+  outline: none;
+  border-color: #0a84ff;
+  box-shadow: 0 0 0 4px rgb(10 132 255 / 0.25);
+}
+.staff-ui button.bg-ink,
+.staff-ui a.bg-ink {
+  border-radius: 999px;
+  background: #f5f5f7;
+  color: #000;
+  font-weight: 500;
+}
+.staff-ui button.bg-ink:hover,
+.staff-ui a.bg-ink:hover {
+  background: #fff;
+}
+.staff-ui h2.text-h3,
+.staff-ui h2.text-h2 {
+  color: #f5f5f7;
+}
+.staff-ui ::selection {
+  background: rgb(10 132 255 / 0.4);
+}
+@keyframes staff-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.staff-rise { animation: staff-rise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .staff-rise { animation: none; }
+}
