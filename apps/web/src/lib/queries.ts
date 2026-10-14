@@ -1,5 +1,6 @@
 import 'server-only'
 import { cache } from 'react'
+import { unstable_cache } from 'next/cache'
 import type { Where } from 'payload'
 import type { Locale } from '@/i18n/config'
 import type { Article, Event, Media, Publication } from '@/payload-types'
@@ -16,7 +17,10 @@ const PUBLIC = { overrideAccess: false, draft: false } as const
 
 const published: Where = { _status: { equals: 'published' } }
 
-export const getSiteChrome = cache(async (locale: Locale) => {
+/** Database reads kept for a minute and dropped the instant an editor publishes (tag "content"). */
+const CACHE = { revalidate: 60, tags: ['content'] }
+
+export const getSiteChrome = cache((locale: Locale) => unstable_cache(async () => {
   const payload = await getPayloadClient()
   const [navigation, settings] = await Promise.all([
     payload.findGlobal({ slug: 'navigation', locale, depth: 0, ...PUBLIC }),
@@ -24,7 +28,7 @@ export const getSiteChrome = cache(async (locale: Locale) => {
   ])
   // Fixed wording (footer text, key figures…) in the reader's language.
   return { navigation, settings: localizedSettings(settings, locale) }
-})
+}, ['site-chrome', locale], CACHE)())
 
 export const getLatestArticles = cache(
   async (locale: Locale, limit = 8, excludeIds: string[] = []): Promise<Article[]> => {
@@ -103,7 +107,7 @@ export const getUpcomingEvents = cache(async (locale: Locale, limit = 4): Promis
   return result.docs
 })
 
-export const getEventBySlug = cache(async (locale: Locale, slug: string): Promise<Event | null> => {
+export const getEventBySlug = cache((locale: Locale, slug: string): Promise<Event | null> => unstable_cache(async (): Promise<Event | null> => {
   const payload = await getPayloadClient()
   const result = await payload.find({
     collection: 'events',
@@ -114,7 +118,7 @@ export const getEventBySlug = cache(async (locale: Locale, slug: string): Promis
     ...PUBLIC,
   })
   return result.docs[0] ?? null
-})
+}, ['event-by-slug', locale, slug], CACHE)())
 
 export const getLatestPublication = cache(async (locale: Locale): Promise<Publication | null> => {
   const payload = await getPayloadClient()

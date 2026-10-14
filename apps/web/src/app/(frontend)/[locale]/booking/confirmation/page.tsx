@@ -8,6 +8,8 @@ import { formatMinor, type PublicOrder } from '@/lib/bookingTypes'
 import { formatEventDate, intlLocales } from '@/lib/format'
 import { textParam } from '@/lib/listings'
 import { href, routes } from '@/lib/site'
+import { ClearCart } from '@/components/account/ClearCart'
+import { TicketImage } from '@/components/account/TicketImage'
 
 // Personal page: never cached, never indexed.
 export const dynamic = 'force-dynamic'
@@ -19,10 +21,10 @@ type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
-async function loadOrder(ref: string, token: string): Promise<PublicOrder | null> {
+async function loadOrder(ref: string, token: string, fresh = false): Promise<PublicOrder | null> {
   if (!bookingApiUrl || !ref || !token) return null
   const res = await fetch(
-    `${bookingApiUrl}/orders/${encodeURIComponent(ref)}?t=${encodeURIComponent(token)}`,
+    `${bookingApiUrl}/orders/${encodeURIComponent(ref)}?t=${encodeURIComponent(token)}${fresh ? `&r=${Date.now()}` : ''}`,
     {
       cache: 'no-store',
       // Server-to-server: lets the API tell this page apart from visitors for rate limiting.
@@ -43,8 +45,22 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
   const sp = await searchParams
   const ref = textParam(sp.order, 20)
   const token = textParam(sp.t, 64)
-  const order = await loadOrder(ref, token)
+  let order = await loadOrder(ref, token)
   if (!order) notFound()
+  // Back from Stripe: ask the booking server to check the payment right now (it asks Stripe
+  // directly), so tickets show at once instead of waiting for Stripe's webhook.
+  if (order.status === 'pending' && bookingApiUrl && !order.demo) {
+    await fetch(
+      `${bookingApiUrl}/orders/${encodeURIComponent(ref)}/confirm?t=${encodeURIComponent(token)}`,
+      {
+        method: 'POST',
+        cache: 'no-store',
+        headers: process.env.INTERNAL_API_KEY ? { 'x-internal-key': process.env.INTERNAL_API_KEY } : {},
+      },
+    ).catch(() => null)
+    // `fresh` stops Next.js reusing the first answer it already fetched during this page render.
+    order = (await loadOrder(ref, token, true)) ?? order
+  }
 
   const money = (n: number) => formatMinor(n, order.currency, intlLocales[locale])
   const date = formatEventDate(order.event.startsAt, locale)
@@ -91,8 +107,32 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
 
   return (
     <div className="container-wide pb-20">
+      <ClearCart />
       <header className="border-b border-rule-strong pt-10 pb-8 md:pt-16">
-        <span className="eyebrow text-brass-text">✓ {t.confirmTitle}</span>
+        <div role="status" className="mb-8 border-l-4 border-fjord bg-snow p-5">
+          <p className="font-display text-h2">✓ {t.hubBooked}</p>
+          <p className="mt-2 text-charcoal">{t.hubBookedBody}</p>
+          <dl className="mt-4 grid gap-4 font-ui text-caption sm:grid-cols-4" data-testid="order-counts">
+            <div>
+              <dt className="text-slate">{t.hubOrderNumber}</dt>
+              <dd className="font-semibold">{order.ref}</dd>
+            </div>
+            <div>
+              <dt className="text-slate">{t.hubOrdersCount}</dt>
+              <dd className="font-semibold">1</dd>
+            </div>
+            <div>
+              <dt className="text-slate">{t.hubTicketsBookedCount}</dt>
+              <dd className="font-semibold" data-testid="tickets-count">{live.length}</dd>
+            </div>
+            <div>
+              <dt className="text-slate">{t.hubTotalPaid}</dt>
+              <dd className="font-semibold">{money(order.total)}</dd>
+            </div>
+          </dl>
+          {order.demo ? <p className="mt-3 font-ui text-meta font-semibold text-brass-text">{t.payDemoBadge}</p> : null}
+        </div>
+        <span className="eyebrow text-brass-text">{t.confirmTitle}</span>
         <h1 className="mt-3 text-h1">{order.event.title}</h1>
         <p className="meta mt-3">
           {date.full}
@@ -123,26 +163,20 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
         <section aria-label={t.yourTickets} className="lg:col-span-8">
           <h2 className="eyebrow text-slate">{t.yourTickets}</h2>
           <p className="meta mt-2">{t.showAtEntrance}</p>
-          <ul className="mt-6 grid gap-6 sm:grid-cols-2">
+          <p className="meta mt-1">{t.hubTicketUnique}</p>
+          <ul className="mt-6 grid gap-8">
             {live.map((tk, i) => (
-              <li key={tk.code} className="border border-rule bg-snow p-5 text-center">
-                <p className="font-ui text-caption font-semibold">{tk.tier}</p>
-                <p className="meta">
-                  {tk.holder} · {i + 1}/{live.length}
+              <li key={tk.code} data-testid="ticket-card">
+                <p className="mb-2 font-ui text-caption font-semibold">
+                  {t.hubTicketImage} {i + 1}/{live.length} · {tk.tier}
                 </p>
-                {tk.qr ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- data URL from the API, not an optimisable asset
-                  <img
-                    src={tk.qr}
-                    alt={`QR ${tk.code}`}
-                    width={220}
-                    height={220}
-                    className="mx-auto mt-4"
-                  />
-                ) : null}
-                <p className="mt-2 font-mono text-[0.6875rem] tracking-wider text-slate">
-                  {tk.code}
-                </p>
+                <TicketImage
+                  src={fileLink(`tickets/${tk.code}.svg`)}
+                  fileName={`ticket-${order.ref}-${i + 1}`}
+                  alt={`${t.hubTicketImage} ${tk.code}`}
+                  downloadLabel={t.hubTicketDownloadPng}
+                  openLabel={t.hubTicketOpen}
+                />
               </li>
             ))}
           </ul>
@@ -176,6 +210,12 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
                 <dd>{money(order.fees)}</dd>
               </div>
             ) : null}
+            {order.servicesTotal ? (
+              <div className="flex justify-between gap-4">
+                <dt>{t.hubServicesTitle}</dt>
+                <dd>{money(order.servicesTotal)}</dd>
+              </div>
+            ) : null}
             <div className="flex justify-between gap-4 border-t border-rule pt-2 font-semibold">
               <dt>{t.total}</dt>
               <dd>{money(order.total)}</dd>
@@ -185,7 +225,7 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
             </p>
           </dl>
           <Link
-            href={href(locale, '/account')}
+            href={href(locale, '/events')}
             className="mt-8 inline-block font-ui text-meta font-semibold text-fjord hover:underline"
           >
             {t.myBookings} →

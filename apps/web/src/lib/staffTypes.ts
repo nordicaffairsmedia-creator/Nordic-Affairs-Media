@@ -47,6 +47,8 @@ export type CheckinResult = {
   order?: string
   event?: string
   checkedInAt?: string | null
+  code?: string
+  demo?: boolean
 }
 
 type ReportRow = { orders: number; tickets: number; gross: number; refunded: number; vat: number }

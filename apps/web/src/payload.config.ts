@@ -171,6 +171,9 @@ export default buildConfig({
   plugins,
   admin: {
     user: Users.slug,
+    // Events happen in Sweden: every date/time typed in the admin is Swedish time (Europe/Stockholm),
+    // wherever the editor sits, and the website shows exactly that value.
+    timezones: { defaultTimezone: 'Europe/Stockholm', supportedTimezones: [{ label: 'Sweden (Stockholm)', value: 'Europe/Stockholm' }] },
     meta: {
       titleSuffix: ' — Nordic Affairs Media',
       icons: [{ rel: 'icon', type: 'image/png', url: '/icons/favicon-48.png' }],

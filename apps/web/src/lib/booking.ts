@@ -37,6 +37,15 @@ export function bookingLabels(t: Dictionary) {
     errGeneric: t.errGeneric,
     incVat: t.incVat,
     bookingSoon: t.bookingSoon,
+    hubPayNote: t.hubPayNote,
+    hubChecking: t.hubChecking,
+    hubAvailError: t.hubAvailError,
+    hubRetry: t.hubRetry,
+    hubNotOnSale: t.hubNotOnSale,
+    hubApply: t.hubApply,
+    hubRemove: t.hubRemove,
+    hubDiscount: t.hubDiscount,
+    errPhone: t.errPhone,
   }
 }
 export type BookingLabels = ReturnType<typeof bookingLabels>
@@ -48,6 +57,8 @@ export function errorText(code: string | undefined, l: BookingLabels): string {
       return l.errSoldOut
     case 'invalid_promo':
       return l.errPromo
+    case 'phone_required':
+      return l.errPhone
     case 'too_many':
       return l.errTooMany
     case 'not_on_sale':
@@ -59,5 +70,20 @@ export function errorText(code: string | undefined, l: BookingLabels): string {
       return l.errPayments
     default:
       return l.errGeneric
+  }
+}
+
+/**
+ * Where to send the browser after "checkout". Stripe's page is used as given. Anything else is one
+ * of our own pages (payment, confirmation): always opened on the address the buyer is already on,
+ * so a wrong website address configured on the API can never send them to another site.
+ */
+export function checkoutDestination(url: string): string {
+  try {
+    const u = new URL(url)
+    if (u.hostname.endsWith('stripe.com')) return url
+    return `${window.location.origin}${u.pathname}${u.search}`
+  } catch {
+    return url
   }
 }

@@ -76,6 +76,14 @@ export const PromoCodes: CollectionConfig = {
         { name: 'timesUsed', type: 'number', defaultValue: 0, admin: { readOnly: true } },
       ],
     },
+    {
+      type: 'row',
+      fields: [
+        { name: 'minSpend', type: 'number', min: 0, admin: { description: 'Optional. Smallest ticket total (event currency) the code works for.' } },
+        { name: 'maxDiscount', type: 'number', min: 0, admin: { description: 'Optional. Caps the discount (event currency), useful for percent codes.' } },
+        { name: 'perEmailLimit', type: 'number', min: 1, admin: { description: 'Optional. How many times one buyer (email) may use the code.' } },
+      ],
+    },
     { name: 'active', type: 'checkbox', defaultValue: true, admin: { position: 'sidebar' } },
   ],
 }

@@ -3,12 +3,16 @@ import { rateLimit } from 'express-rate-limit'
 import { randomInt, timingSafeEqual } from 'node:crypto'
 import { z } from 'zod'
 import { LOCALES, type Locale } from '../catalog.js'
-import { receiptPdf, ticketsPdf, qrDataUrl } from '../documents.js'
+import { receiptPdf, ticketsPdf, qrDataUrl, ticketSvg } from '../documents.js'
 import { esc, sendEmail } from '../email.js'
 import { sendTicketsEmail } from '../fulfil.js'
 import { messages } from '../messages.js'
 import { newToken, orders, publicOrder, sha256, tickets, type Order } from '../orders.js'
 import { getDb } from '../db.js'
+import { cancelOrderTickets } from '../cancellations.js'
+import { stripe } from '../stripe.js'
+import { hasInternalKey } from './internal.js'
+import { settleSession } from '../settle.js'
 
 export const ordersRouter = Router()
 
@@ -59,6 +63,47 @@ ordersRouter.get('/orders/:ref', async (req, res) => {
   res.set('Cache-Control', 'no-store').json(await withTickets(order))
 })
 
+/**
+ * The buyer's browser came back from Stripe: ask Stripe directly whether the session is paid and
+ * issue the tickets now, so the thank-you page never waits for the webhook. Safe to call repeatedly.
+ */
+const confirmLimiter = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false, skip: (req) => hasInternalKey(req) })
+ordersRouter.post('/orders/:ref/confirm', confirmLimiter, async (req, res) => {
+  const order = await orderByToken(String(req.params.ref ?? ''), String(req.query.t ?? ''))
+  if (!order) return void res.status(404).json({ error: 'not_found' })
+  if (order.status !== 'pending' || !order.stripeSessionId) return void res.json({ status: order.status })
+  const s = stripe()
+  if (!s) return void res.json({ status: order.status })
+  try {
+    const session = await s.checkout.sessions.retrieve(order.stripeSessionId)
+    if (session.metadata?.orderId !== order._id) return void res.status(409).json({ error: 'mismatch' })
+    const paid = await settleSession(session)
+    const fresh = await orders().findOne({ _id: order._id })
+    res.json({ status: fresh?.status ?? order.status, paid })
+  } catch (e) {
+    console.error('[confirm]', e)
+    res.status(502).json({ error: 'payment_provider_error' })
+  }
+})
+
+/** The ticket picture (SVG) for one ticket, with its own QR code. */
+ordersRouter.get('/orders/:ref/tickets/:code.svg', async (req, res) => {
+  const order = await authorise(req)
+  if (!order || !['paid', 'partially_refunded', 'refunded'].includes(order.status))
+    return void res.status(404).send('Not found')
+  const list = await tickets().find({ orderId: order._id }).sort({ createdAt: 1 }).toArray()
+  const i = list.findIndex((t) => t.code === req.params.code)
+  const ticket = list[i]
+  if (!ticket) return void res.status(404).send('Not found')
+  res
+    .type('image/svg+xml')
+    // The website (another origin) shows this picture in an <img>.
+    .set('Cross-Origin-Resource-Policy', 'cross-origin')
+    .set('Cache-Control', 'private, no-store')
+    .set('Content-Disposition', `inline; filename="ticket-${order._id}-${i + 1}.svg"`)
+    .send(ticketSvg(order, ticket, i + 1, list.length, { demo: order.demo }))
+})
+
 ordersRouter.get('/orders/:ref/tickets.pdf', async (req, res) => {
   const order = await authorise(req)
   if (!order || order.status !== 'paid') return void res.status(404).send('Not found')
@@ -100,6 +145,47 @@ ordersRouter.post('/orders/:ref/resend', resendLimiter, async (req, res) => {
 ordersRouter.post('/orders/:ref/cancel-request', async (req, res) => {
   const order = await authorise(req)
   if (!order || order.status !== 'paid') return void res.status(404).json({ error: 'not_found' })
+
+  // "Money back in case of illness" (a paid extra): before the event starts, the buyer is refunded
+  // everything except the extras themselves, automatically, and the tickets are cancelled.
+  const refundable = order.total - (order.servicesTotal ?? 0)
+  if (order.services?.refundProtection && order.eventStartsAt > new Date() && refundable > 0) {
+    const claimed = await orders().findOneAndUpdate(
+      { _id: order._id, status: 'paid' },
+      {
+        $set: {
+          status: 'partially_refunded',
+          refundedAmount: refundable,
+          cancelRequestedAt: new Date(),
+        },
+      },
+    )
+    if (!claimed) return void res.status(409).json({ error: 'already_handled' })
+    if (order.stripePaymentIntentId) {
+      const s = stripe()
+      try {
+        if (!s) throw new Error('payments_unavailable')
+        await s.refunds.create(
+          {
+            payment_intent: order.stripePaymentIntentId,
+            amount: refundable,
+            metadata: { orderId: order._id, cause: 'refund_protection' },
+          },
+          { idempotencyKey: `protect:${order._id}` },
+        )
+      } catch (e) {
+        console.error('[refund-protection]', e)
+        await orders().updateOne(
+          { _id: order._id },
+          { $set: { status: 'paid' }, $unset: { refundedAmount: '', cancelRequestedAt: '' } },
+        )
+        return void res.status(502).json({ error: 'payment_provider_error' })
+      }
+    }
+    await cancelOrderTickets(order._id)
+    return void res.json({ requested: true, refunded: refundable })
+  }
+
   await orders().updateOne(
     { _id: order._id, cancelRequestedAt: { $exists: false } },
     { $set: { cancelRequestedAt: new Date() } },

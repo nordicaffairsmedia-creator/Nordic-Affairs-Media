@@ -1,5 +1,6 @@
 import 'server-only'
 import { cache } from 'react'
+import { unstable_cache } from 'next/cache'
 import type { Where } from 'payload'
 import type { Locale } from '@/i18n/config'
 import { getPayloadClient } from './payload'
@@ -110,7 +111,7 @@ export async function listEvents(
 }
 
 /** Filter choices are built from real data, so the form never offers an empty option. */
-export const getEventFilterOptions = cache(async (locale: Locale) => {
+export const getEventFilterOptions = cache((locale: Locale) => unstable_cache(async () => {
   const payload = await getPayloadClient()
   const [venues, categories] = await Promise.all([
     payload.find({
@@ -131,7 +132,7 @@ export const getEventFilterOptions = cache(async (locale: Locale) => {
   ])
   const cities = [...new Set(venues.docs.map((v) => v.city))].sort((a, b) => a.localeCompare(b))
   return { cities, categories: categories.docs.map((c) => ({ slug: c.slug, title: c.title })) }
-})
+}, ['event-filter-options', locale], { revalidate: 60, tags: ['content'] })())
 
 export async function listPublications(
   locale: Locale,

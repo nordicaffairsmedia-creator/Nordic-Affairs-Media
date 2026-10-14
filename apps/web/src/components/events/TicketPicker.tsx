@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Minus, Plus } from 'lucide-react'
-import { bookingApiUrl, errorText, type BookingLabels } from '@/lib/booking'
+import { bookingApiUrl, checkoutDestination, errorText, type BookingLabels } from '@/lib/booking'
 
 type TierView = { tierId: string; name: string; description?: string | null; price: number }
 
@@ -45,6 +45,12 @@ export function TicketPicker({
   returnTo,
 }: Props) {
   const [avail, setAvail] = useState<Availability | null>(null)
+  // Why "+" can be disabled: still loading, or the booking service could not be reached. Both are now
+  // shown to the buyer (before, the picker stayed silently disabled).
+  const [availStatus, setAvailStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [promo, setPromo] = useState<{ discount: number } | null>(null)
+  const [promoBusy, setPromoBusy] = useState(false)
+  const [promoText, setPromoText] = useState('')
   const [qty, setQty] = useState<Record<string, number>>({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -54,13 +60,23 @@ export function TicketPicker({
   const [reload, setReload] = useState(0)
   useEffect(() => {
     const ctrl = new AbortController()
+    setAvailStatus('loading')
     fetch(`${bookingApiUrl}/events/${eventId}/availability`, {
       signal: ctrl.signal,
       cache: 'no-store',
     })
-      .then((r) => (r.ok ? (r.json() as Promise<Availability>) : null))
-      .then(setAvail)
-      .catch(() => undefined)
+      .then((r) => {
+        if (!r.ok) throw new Error(`availability ${r.status}`)
+        return r.json() as Promise<Availability>
+      })
+      .then((a) => {
+        setAvail(a)
+        setAvailStatus('ready')
+      })
+      .catch((e: unknown) => {
+        if (e instanceof DOMException && e.name === 'AbortError') return
+        setAvailStatus('error')
+      })
     return () => ctrl.abort()
   }, [eventId, reload])
 
@@ -81,14 +97,47 @@ export function TicketPicker({
   const totalQty = Object.values(qty).reduce((a, b) => a + b, 0)
   const total = tiers.reduce((sum, t) => sum + t.price * (qty[t.tierId] ?? 0), 0)
   const max = avail?.maxPerOrder ?? 10
+  // Nothing to pay (free tickets or a 100% code): no payment page, so we ask for the details ourselves.
+  const freeOrder = totalQty > 0 && total - (promo?.discount ?? 0) / 100 <= 0
 
   const change = (tierId: string, delta: number) => {
     setError(null)
+    setPromo(null)
     setQty((q) => {
       const next = Math.max(0, Math.min((q[tierId] ?? 0) + delta, remainingOf(tierId)))
       const others = totalQty - (q[tierId] ?? 0)
       return { ...q, [tierId]: Math.min(next, max - others) }
     })
+  }
+
+  async function applyPromo() {
+    const code = promoText.trim()
+    if (!code || totalQty === 0) return
+    setPromoBusy(true)
+    setError(null)
+    try {
+      const res = await fetch(`${bookingApiUrl}/promo/preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventId,
+          locale,
+          promoCode: code,
+          items: Object.entries(qty)
+            .filter(([, n]) => n > 0)
+            .map(([tierId, quantity]) => ({ tierId, quantity })),
+        }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { discount?: number; error?: string }
+      if (res.ok && typeof data.discount === 'number') setPromo({ discount: data.discount })
+      else {
+        setPromo(null)
+        setError(errorText(data.error, labels))
+      }
+    } catch {
+      setError(labels.errGeneric)
+    }
+    setPromoBusy(false)
   }
 
   async function submit(e: FormEvent<HTMLFormElement>) {
@@ -104,10 +153,12 @@ export function TicketPicker({
         body: JSON.stringify({
           eventId,
           locale,
-          name: String(form.get('name') ?? ''),
-          email: String(form.get('email') ?? ''),
-          promoCode: String(form.get('promo') ?? '').trim() || undefined,
+          // Paid orders: Stripe's payment page collects name, email and phone. Free orders ask here.
+          name: String(form.get('name') ?? '').trim() || undefined,
+          email: String(form.get('email') ?? '').trim() || undefined,
+          promoCode: promoText.trim() || undefined,
           acceptTerms: form.get('terms') === 'on',
+          webOrigin: window.location.origin,
           returnTo,
           items: Object.entries(qty)
             .filter(([, n]) => n > 0)
@@ -116,7 +167,7 @@ export function TicketPicker({
       })
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string }
       if (res.ok && data.url) {
-        window.location.assign(data.url)
+        window.location.assign(checkoutDestination(data.url))
         return
       }
       if (data.error === 'sold_out') {
@@ -128,6 +179,21 @@ export function TicketPicker({
       setError(labels.errGeneric)
     }
     setBusy(false)
+  }
+
+  if (availStatus === 'error') {
+    return (
+      <div role="alert" className="space-y-3">
+        <p className="font-ui text-caption font-semibold text-alert">{labels.hubAvailError}</p>
+        <button
+          type="button"
+          onClick={() => setReload((n) => n + 1)}
+          className="inline-flex min-h-11 items-center bg-ink px-5 font-ui text-caption font-semibold text-snow hover:bg-fjord-deep"
+        >
+          {labels.hubRetry}
+        </button>
+      </div>
+    )
   }
 
   if (avail && (!avail.onSale || !avail.paymentsReady)) {
@@ -149,19 +215,29 @@ export function TicketPicker({
         </p>
       ) : null}
 
+      {availStatus === 'loading' ? (
+        <p role="status" className="meta">
+          {labels.hubChecking}
+        </p>
+      ) : null}
+
       <ul className="divide-y divide-rule border-y border-rule">
         {tiers.map((tier) => {
           const left = remainingOf(tier.tierId)
           const n = qty[tier.tierId] ?? 0
-          const soldOut = avail !== null && left === 0
+          const tierAvail = avail?.tiers.find((x) => x.tierId === tier.tierId)
+          const closed = avail !== null && tierAvail !== undefined && !tierAvail.onSale
+          const soldOut = avail !== null && left === 0 && !closed
           return (
             <li key={tier.tierId} className="flex items-center justify-between gap-4 py-4">
               <div className="min-w-0">
                 <p className="font-ui text-body font-semibold">{tier.name}</p>
                 {tier.description ? <p className="meta">{tier.description}</p> : null}
                 <p className="mt-1 font-display text-h3">{money.format(tier.price)}</p>
-                <p className={`meta ${soldOut ? 'text-alert' : ''}`}>
-                  {soldOut
+                <p className={`meta ${soldOut || closed ? 'text-alert' : ''}`}>
+                  {closed
+                    ? labels.hubNotOnSale
+                    : soldOut
                     ? labels.soldOut
                     : avail && left <= 20
                       ? `${left} ${labels.left}`
@@ -206,39 +282,78 @@ export function TicketPicker({
 
       {totalQty > 0 ? (
         <fieldset className="space-y-4">
-          <legend className="eyebrow mb-2 text-slate">{labels.yourDetails}</legend>
-          <label className="block">
-            <span className="meta mb-1 block">{labels.fullName}</span>
-            <input
-              name="name"
-              required
-              minLength={2}
-              maxLength={80}
-              autoComplete="name"
-              className={inputCls}
-            />
-          </label>
-          <label className="block">
-            <span className="meta mb-1 block">{labels.emailLabel}</span>
-            <input
-              name="email"
-              type="email"
-              required
-              maxLength={200}
-              autoComplete="email"
-              className={inputCls}
-            />
-          </label>
+          {freeOrder ? (
+            <>
+              <legend className="eyebrow mb-2 text-slate">{labels.yourDetails}</legend>
+              <label className="block">
+                <span className="meta mb-1 block">{labels.fullName}</span>
+                <input
+                  name="name"
+                  required
+                  minLength={2}
+                  maxLength={80}
+                  autoComplete="name"
+                  className={inputCls}
+                />
+              </label>
+              <label className="block">
+                <span className="meta mb-1 block">{labels.emailLabel}</span>
+                <input
+                  name="email"
+                  type="email"
+                  required
+                  maxLength={200}
+                  autoComplete="email"
+                  className={inputCls}
+                />
+              </label>
+            </>
+          ) : null}
           {avail?.promoCodes ? (
-            <label className="block">
-              <span className="meta mb-1 block">{labels.promoCode}</span>
-              <input
-                name="promo"
-                maxLength={40}
-                autoComplete="off"
-                className={`${inputCls} uppercase`}
-              />
-            </label>
+            <div>
+              <label htmlFor="promo-code" className="meta mb-1 block">
+                {labels.promoCode}
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="promo-code"
+                  value={promoText}
+                  onChange={(e) => {
+                    setPromoText(e.target.value)
+                    setPromo(null)
+                  }}
+                  maxLength={40}
+                  autoComplete="off"
+                  className={`${inputCls} uppercase`}
+                />
+                {promo ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPromo(null)
+                      setPromoText('')
+                    }}
+                    className="min-h-12 shrink-0 border border-ink px-4 font-ui text-caption font-semibold"
+                  >
+                    {labels.hubRemove}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={promoBusy || !promoText.trim()}
+                    onClick={() => void applyPromo()}
+                    className="min-h-12 shrink-0 border border-ink px-4 font-ui text-caption font-semibold disabled:opacity-40"
+                  >
+                    {labels.hubApply}
+                  </button>
+                )}
+              </div>
+              {promo ? (
+                <p role="status" className="meta mt-2 text-fjord">
+                  {labels.hubDiscount}: −{money.format(promo.discount / 100)}
+                </p>
+              ) : null}
+            </div>
           ) : null}
           <label className="flex items-start gap-3 font-ui text-caption">
             <input
@@ -282,6 +397,7 @@ export function TicketPicker({
           {avail ? labels.holdNote.replace('{n}', String(avail.holdMinutes)) : null}{' '}
           {labels.feesNote}
         </p>
+        {totalQty > 0 && !freeOrder ? <p className="meta mt-2">{labels.hubPayNote}</p> : null}
       </div>
     </form>
   )

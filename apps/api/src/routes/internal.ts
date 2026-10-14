@@ -134,6 +134,7 @@ internalRouter.get('/internal/events/:id/orders', async (req, res) => {
         o,
         all.filter((t) => t.orderId === o._id),
       ),
+      phone: o.phone ?? null,
       refundedAmount: o.refundedAmount ?? 0,
       refundable: Boolean(o.stripePaymentIntentId),
       note: o.note ?? null,
@@ -321,10 +322,12 @@ internalRouter.post('/internal/events/:id/announce', async (req, res) => {
     })
     .safeParse(req.body)
   if (!parsed.success) return void res.status(400).json({ error: 'invalid_request' })
-  const emails = await orders().distinct('email', {
-    eventId: req.params.id,
-    status: { $in: ['paid', 'partially_refunded'] },
-  })
+  const emails = (
+    await orders().distinct('email', {
+      eventId: req.params.id,
+      status: { $in: ['paid', 'partially_refunded'] },
+    })
+  ).filter(Boolean)
   const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:24px;color:#121414;line-height:1.6"><p style="font-size:11px;letter-spacing:3px;color:#835c20">NORDIC AFFAIRS MEDIA</p>${esc(
     parsed.data.message,
   )
@@ -376,7 +379,15 @@ internalRouter.post('/internal/checkin', async (req, res) => {
   )
   if (!updated)
     return void res.json({ result: 'already', ...info, checkedInAt: ticket.checkedInAt ?? null })
-  res.json({ result: 'ok', ...info })
+  const order = await orders().findOne({ _id: ticket.orderId })
+  res.json({
+    result: 'ok',
+    ...info,
+    code,
+    event: order?.eventTitleEn ?? '',
+    demo: Boolean(order?.demo),
+    checkedInAt: new Date().toISOString(),
+  })
 })
 
 /** Manual search at the gate by name or order reference (PRD G-03). */

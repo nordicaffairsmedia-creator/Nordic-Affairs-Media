@@ -23,6 +23,8 @@ import { newOrderRef, newToken, orders, type Order, type OrderItem } from '../or
 import { calculate, promoApplies, toMinor } from '../pricing.js'
 import { release, remaining, reserve, sweepExpiredHolds, type Hold } from '../stock.js'
 import { stripe, stripeLocale } from '../stripe.js'
+import { demoPayUrl, demoPaymentsOn } from '../demo.js'
+import { offeredServices, priceServices } from '../services.js'
 
 export const checkoutRouter = Router()
 
@@ -31,8 +33,10 @@ const STRIPE_MIN_SESSION_MINUTES = 30
 const body = z.object({
   eventId: z.string().min(12).max(40),
   locale: z.enum(LOCALES as [Locale, ...Locale[]]).default('en'),
-  email: z.string().trim().toLowerCase().email().max(200),
-  name: z.string().trim().min(2).max(80),
+  // Paid orders: the buyer's details are collected on the Stripe payment page, so these are optional here.
+  // Free orders never reach Stripe, so they must send both.
+  email: z.string().trim().toLowerCase().email().max(200).optional(),
+  name: z.string().trim().min(2).max(80).optional(),
   items: z
     .array(
       z.object({ tierId: z.string().min(1).max(64), quantity: z.number().int().min(1).max(50) }),
@@ -40,6 +44,30 @@ const body = z.object({
     .min(1)
     .max(10),
   promoCode: z.string().trim().max(40).optional(),
+  // Buyer information step of the My Booking checkout (all optional so the Events page keeps working).
+  phone: z
+    .string()
+    .trim()
+    .regex(/^\+[1-9]\d{6,14}$/)
+    .optional(),
+  country: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{2}$/)
+    .optional(),
+  postalCode: z.string().trim().max(12).optional(),
+  companyName: z.string().trim().max(80).optional(),
+  consent: z.object({ marketing: z.boolean(), promoter: z.boolean() }).optional(),
+  // Extras from the Services step. Anything not offered is ignored by the server.
+  services: z
+    .object({
+      smsTickets: z.boolean().optional(),
+      refundProtection: z.boolean().optional(),
+      reminder: z.boolean().optional(),
+    })
+    .optional(),
+  webOrigin: z.string().trim().max(200).optional(),
   acceptTerms: z.literal(true),
   // Set by the My Booking hub so an abandoned payment returns there. Absent = Events page.
   returnTo: z.enum(['account']).optional(),
@@ -57,10 +85,13 @@ checkoutRouter.get('/events/:id/availability', async (req, res) => {
   const left = await remaining(String(event._id), tiers)
   res.set('Cache-Control', 'no-store').json({
     onSale: settings.features.ticketSales && eventOnSale(event),
-    paymentsReady: Boolean(stripe()),
+    paymentsReady: Boolean(stripe()) || demoPaymentsOn(),
+    demoPayments: demoPaymentsOn(),
     promoCodes: settings.features.promoCodes,
     maxPerOrder: event.maxPerOrder ?? 10,
     holdMinutes: settings.holdMinutes,
+    serviceFeePercent: settings.serviceFeePercent,
+    services: offeredServices(settings),
     tiers: tiers.map((t) => ({
       tierId: t.tierId,
       onSale: tierOnSale(t),
@@ -118,12 +149,33 @@ checkoutRouter.post('/checkout', checkoutLimiter, async (req, res) => {
   if (input.promoCode) {
     if (!settings.features.promoCodes) return void res.status(400).json({ error: 'invalid_promo' })
     promo = await findPromo(input.promoCode)
-    if (!promo || !promoApplies(promo, String(event._id)))
+    const subtotal = items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0)
+    if (!promo || !promoApplies(promo, String(event._id), new Date(), subtotal))
       return void res.status(400).json({ error: 'invalid_promo' })
+    // Per-buyer limit: counted from this buyer's earlier paid or in-progress orders.
+    if (promo.perEmailLimit && input.email) {
+      const used = await orders().countDocuments({
+        promoCodeId: promo._id,
+        email: input.email,
+        status: { $in: ['pending', 'paid', 'partially_refunded'] },
+      })
+      if (used >= promo.perEmailLimit) return void res.status(400).json({ error: 'invalid_promo' })
+    }
   }
 
-  const totals = calculate(items, settings, event.vatRate ?? settings.defaultVatRate, promo)
-  if (totals.total > 0 && !stripe())
+  const services = priceServices(input.services, settings)
+  if ((services.chosen.smsTickets || services.chosen.reminder) && !input.phone)
+    return void res.status(400).json({ error: 'phone_required' })
+  const totals = calculate(
+    items,
+    settings,
+    event.vatRate ?? settings.defaultVatRate,
+    promo,
+    services.total,
+  )
+  if (totals.total === 0 && (!input.email || !input.name))
+    return void res.status(400).json({ error: 'details_required' })
+  if (totals.total > 0 && !stripe() && !demoPaymentsOn())
     return void res.status(503).json({ error: 'payments_unavailable' })
 
   // Hold the tickets — all tiers or none.
@@ -139,7 +191,16 @@ checkoutRouter.post('/checkout', checkoutLimiter, async (req, res) => {
     held.push(item)
   }
 
-  const result = await createOrder({ input, event, items, totals, promo, settings, eventId }).catch(
+  const result = await createOrder({
+    input,
+    event,
+    items,
+    totals,
+    promo,
+    settings,
+    eventId,
+    services,
+  }).catch(
     async (e: unknown) => {
       for (const h of held) await release(eventId, h.tierId, h.quantity)
       throw e
@@ -160,8 +221,9 @@ async function createOrder(args: {
   promo: PromoCode | null
   settings: Awaited<ReturnType<typeof getSettings>>
   eventId: string
+  services: ReturnType<typeof priceServices>
 }): Promise<{ ref: string; url: string } | Fail> {
-  const { input, event, items, totals, promo, settings, eventId } = args
+  const { input, event, items, totals, promo, settings, eventId, services } = args
   if (promo && !(await claimPromoUse(promo))) return fail(400, 'invalid_promo')
 
   const now = new Date()
@@ -175,15 +237,24 @@ async function createOrder(args: {
     eventStartsAt: new Date(event.startsAt),
     venueName: await getVenueName(event.venue),
     locale: input.locale,
-    email: input.email,
-    name: input.name,
+    email: input.email ?? '',
+    name: input.name ?? '',
+    ...(input.phone ? { phone: input.phone } : {}),
+    ...(input.country ? { country: input.country } : {}),
+    ...(input.postalCode ? { postalCode: input.postalCode } : {}),
+    ...(input.companyName ? { companyName: input.companyName } : {}),
+    ...(input.consent ? { consent: input.consent } : {}),
+    services: services.chosen,
     currency: event.currency,
     items,
     ...totals,
     ticketVatRate: event.vatRate ?? settings.defaultVatRate,
     feeVatRate: settings.defaultVatRate,
     ...(promo ? { promoCodeId: promo._id, promoCode: promo.code } : {}),
+    // The site the buyer is on (if it is one of ours), not just the first configured address.
+    ...(input.webOrigin && env.ALLOWED_ORIGINS.includes(input.webOrigin) ? { webOrigin: input.webOrigin } : {}),
     status: 'pending',
+    ...(totals.total > 0 && !stripe() && demoPaymentsOn() ? { demo: true } : {}),
     createdAt: now,
   }
   await orders().insertOne(order)
@@ -205,6 +276,9 @@ async function createOrder(args: {
     await fulfilOrder(order._id)
     return { ref: order._id, url: orderLink(order) }
   }
+
+  // Dummy gateway: send the buyer to our own payment page instead of Stripe.
+  if (order.demo) return { ref: order._id, url: demoPayUrl(order) }
 
   const s = stripe()
   if (!s) return fail(503, 'payments_unavailable')
@@ -228,6 +302,16 @@ async function createOrder(args: {
         },
       })
     }
+    for (const line of services.lines) {
+      lineItems.push({
+        quantity: 1,
+        price_data: {
+          currency: order.currency.toLowerCase(),
+          unit_amount: line.price,
+          product_data: { name: line.name },
+        },
+      })
+    }
     const discounts = totals.discount
       ? [
           {
@@ -248,7 +332,11 @@ async function createOrder(args: {
     // if someone pays after their hold ended, fulfilOrder re-checks stock (and refunds if gone).
     const session = await s.checkout.sessions.create({
       mode: 'payment',
-      customer_email: order.email,
+      // If the buyer already gave email and phone in step 2 they are prefilled / skipped. Otherwise (Events page)
+      // Stripe's page asks for them and the webhook copies them onto the order.
+      ...(order.email ? { customer_email: order.email } : {}),
+      phone_number_collection: { enabled: !order.phone },
+      billing_address_collection: 'auto',
       client_reference_id: order._id,
       metadata: { orderId: order._id },
       payment_intent_data: {
@@ -260,8 +348,8 @@ async function createOrder(args: {
       locale: stripeLocale(order.locale),
       expires_at: Math.floor(Date.now() / 1000) + STRIPE_MIN_SESSION_MINUTES * 60 + 60,
       success_url: `${orderLink(order)}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${env.WEB_URL}/${order.locale}/${
-        input.returnTo === 'account' ? 'account/events' : 'events'
+      cancel_url: `${order.webOrigin ?? env.WEB_URL}/${order.locale}/${
+        'events'
       }/${order.eventSlug}?checkout=cancelled#tickets`,
     })
     await orders().updateOne({ _id: order._id }, { $set: { stripeSessionId: session.id } })

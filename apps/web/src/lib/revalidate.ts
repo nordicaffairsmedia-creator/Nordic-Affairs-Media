@@ -3,7 +3,7 @@ import type {
   CollectionAfterDeleteHook,
   GlobalAfterChangeHook,
 } from 'payload'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 /**
  * Pages are statically cached and refreshed every few minutes (ISR). When an editor
@@ -14,6 +14,8 @@ import { revalidatePath } from 'next/cache'
 function purge(): void {
   try {
     revalidatePath('/', 'layout')
+    // Cached database reads (event lists, event pages, header/footer) are dropped at the same moment.
+    revalidateTag('content')
   } catch {
     // Outside a Next.js request (e.g. `payload run` seed scripts) there is no cache to purge.
   }

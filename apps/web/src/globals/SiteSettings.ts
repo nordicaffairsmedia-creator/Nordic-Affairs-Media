@@ -152,6 +152,38 @@ export const PlatformSettings: GlobalConfig = {
       ],
     },
     {
+      name: 'services',
+      type: 'group',
+      label: 'Checkout services (My Booking, step 3)',
+      admin: {
+        description:
+          'Optional paid extras. Prices are in the event currency. “Tickets by SMS” and “Event reminder” are only shown to buyers once Twilio is set up on the booking API. “Refund protection” refunds the tickets and fees automatically when the buyer cancels before the event starts.',
+      },
+      fields: [
+        {
+          type: 'row',
+          fields: [
+            { name: 'smsTicketsEnabled', type: 'checkbox', defaultValue: true, label: 'Tickets by SMS' },
+            { name: 'smsTicketsPrice', type: 'number', defaultValue: 15, min: 0, label: 'Price' },
+          ],
+        },
+        {
+          type: 'row',
+          fields: [
+            { name: 'refundProtectionEnabled', type: 'checkbox', defaultValue: true, label: 'Refund protection (illness)' },
+            { name: 'refundProtectionPrice', type: 'number', defaultValue: 13, min: 0, label: 'Price' },
+          ],
+        },
+        {
+          type: 'row',
+          fields: [
+            { name: 'reminderEnabled', type: 'checkbox', defaultValue: true, label: 'Event reminder SMS' },
+            { name: 'reminderPrice', type: 'number', defaultValue: 15, min: 0, label: 'Price' },
+          ],
+        },
+      ],
+    },
+    {
       name: 'features',
       type: 'group',
       label: 'Feature switches',

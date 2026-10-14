@@ -99,6 +99,14 @@ services:
         sync: false # e.g. Nordic Affairs Media <tickets@yourdomain> (domain verified in Resend)
       - key: SUPPORT_EMAIL
         sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false # optional: only for the SMS services (tickets by SMS, event reminder)
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM
+        sync: false # your Twilio phone number or sender name
+      - key: PAYMENT_MODE # demo = dummy payment page while Stripe keys are missing; remove when Stripe is live
+        value: demo
       - key: INTERNAL_API_KEY # shared with nam-web for staff pages
         generateValue: true
       - key: OPENAI_API_KEY

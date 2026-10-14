@@ -52,6 +52,13 @@ export const Venues: CollectionConfig = {
     { name: 'city', type: 'text', required: true, index: true },
     { name: 'country', type: 'text', defaultValue: 'Sweden' },
     { name: 'mapUrl', type: 'text', admin: { description: 'Link to Google/Apple Maps.' } },
+    {
+      type: 'row',
+      fields: [
+        { name: 'latitude', type: 'number', min: -90, max: 90, admin: { description: 'Optional. Real venue latitude, e.g. 59.3293. Needed for the map view; events without it are listed but not pinned.' } },
+        { name: 'longitude', type: 'number', min: -180, max: 180, admin: { description: 'Optional. Real venue longitude, e.g. 18.0686.' } },
+      ],
+    },
     { name: 'capacity', type: 'number', min: 1 },
     { name: 'accessInfo', type: 'textarea', localized: true, label: 'Access & parking info' },
   ],

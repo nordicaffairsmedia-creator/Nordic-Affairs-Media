@@ -30,7 +30,13 @@ const schema = z.object({
 
   // Payments (phase 3). Without these, checkout answers "payments not configured".
   STRIPE_SECRET_KEY: z.preprocess(blank, z.string().startsWith('sk_').optional()),
+  // Test-only: point the Stripe client at a local stand-in (host:port). Never set in production.
+  STRIPE_API_HOST: z.preprocess(blank, z.string().optional()),
   STRIPE_WEBHOOK_SECRET: z.preprocess(blank, z.string().startsWith('whsec_').optional()),
+
+  // "demo" = a dummy payment page (no money moves) used while Stripe keys are not set yet.
+  // Ignored as soon as STRIPE_SECRET_KEY exists. Leave unset in real production.
+  PAYMENT_MODE: z.preprocess(blank, z.enum(['stripe', 'demo']).default('stripe')),
 
   // Email. Without a key, emails are written to the log instead of sent (development).
   RESEND_API_KEY: z.preprocess(blank, z.string().optional()),
@@ -39,6 +45,13 @@ const schema = z.object({
     z.string().default('Nordic Affairs Media <onboarding@resend.dev>'),
   ),
   SUPPORT_EMAIL: z.preprocess(blank, z.string().optional()),
+
+  // SMS (Twilio) for the "tickets by SMS" and "event reminder" services. Without all three,
+  // those two services are not offered to buyers (so nobody pays for something we cannot send).
+  TWILIO_ACCOUNT_SID: z.preprocess(blank, z.string().optional()),
+  TWILIO_AUTH_TOKEN: z.preprocess(blank, z.string().optional()),
+  TWILIO_FROM: z.preprocess(blank, z.string().optional()),
+  TWILIO_API_BASE: z.preprocess(blank, z.string().default('https://api.twilio.com')),
 
   // Shared secret between the website server and this API for staff-only endpoints.
   INTERNAL_API_KEY: z.preprocess(blank, z.string().min(24).optional()),

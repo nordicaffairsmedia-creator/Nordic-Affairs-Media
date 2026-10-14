@@ -32,6 +32,7 @@ export type CatalogEvent = {
   title: Localized
   slug: string
   startsAt: Date
+  endsAt?: Date | null
   currency: 'SEK' | 'EUR' | 'NOK' | 'DKK'
   vatRate?: number | null
   maxPerOrder?: number | null
@@ -41,11 +42,15 @@ export type CatalogEvent = {
   _status?: 'draft' | 'published'
 }
 
+export type ServiceKey = 'smsTickets' | 'refundProtection' | 'reminder'
+
 export type PlatformSettings = {
   holdMinutes: number
   bookingFee: number
   serviceFeePercent: number
   defaultVatRate: number
+  /** Optional paid extras shown in step 3 of checkout. Prices in major units of the event currency. */
+  services: Record<ServiceKey, { enabled: boolean; price: number }>
   features: {
     ticketSales: boolean
     guestCheckout: boolean
@@ -64,6 +69,9 @@ export type PromoCode = {
   validFrom?: Date | null
   validUntil?: Date | null
   active?: boolean | null
+  minSpend?: number | null
+  maxDiscount?: number | null
+  perEmailLimit?: number | null
 }
 
 function toObjectId(id: string): ObjectId | null {
@@ -97,6 +105,18 @@ export async function getSettings(): Promise<PlatformSettings> {
     bookingFee: Math.max(0, num(doc?.bookingFee, 0)),
     serviceFeePercent: Math.min(20, Math.max(0, num(doc?.serviceFeePercent, 0))),
     defaultVatRate: num(doc?.defaultVatRate, 6),
+    services: (() => {
+      const s = (doc?.services ?? {}) as Record<string, unknown>
+      const one = (key: string, price: number) => ({
+        enabled: bool(s[`${key}Enabled`], true),
+        price: Math.max(0, num(s[`${key}Price`], price)),
+      })
+      return {
+        smsTickets: one('smsTickets', 15),
+        refundProtection: one('refundProtection', 13),
+        reminder: one('reminder', 15),
+      }
+    })(),
     features: {
       ticketSales: bool(f.ticketSales, true),
       guestCheckout: bool(f.guestCheckout, true),
@@ -132,9 +152,36 @@ export function tierOnSale(tier: Tier, now = new Date()): boolean {
   return tier.quantity > 0
 }
 
+
+const TZ = 'Europe/Stockholm'
+/** Minutes Stockholm is ahead of UTC at a moment (handles summer/winter time). */
+function stockholmOffsetMinutes(at: Date): number {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: TZ, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+    }).formatToParts(at).map((x) => [x.type, x.value]),
+  )
+  return Math.round((Date.UTC(+p.year!, +p.month! - 1, +p.day!, +p.hour!, +p.minute!, +p.second!) - at.getTime()) / 60000)
+}
+
+/**
+ * When ticket sales close. Tickets stay on sale until the event ends. If the admin gave no usable
+ * end time (empty, or not after the start), the event counts as running until midnight (Stockholm)
+ * at the end of its start day, so an event happening today can still be booked today.
+ */
+export function salesCloseAt(startsAt: Date | string, endsAt?: Date | string | null): Date {
+  const start = new Date(startsAt)
+  if (endsAt && new Date(endsAt) > start) return new Date(endsAt)
+  const local = new Date(start.getTime() + stockholmOffsetMinutes(start) * 60000)
+  let guess = new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() + 1))
+  for (let i = 0; i < 2; i++) guess = new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() + 1) - stockholmOffsetMinutes(guess) * 60000)
+  return guess
+}
+
 export function eventOnSale(event: CatalogEvent, now = new Date()): boolean {
   if (event.salesStatus && event.salesStatus !== 'onSale') return false
-  return new Date(event.startsAt) > now
+  return salesCloseAt(event.startsAt, event.endsAt) > now
 }
 
 /** Plain text from Payload rich text (Lexical JSON). */

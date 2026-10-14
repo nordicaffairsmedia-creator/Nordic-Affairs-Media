@@ -6,7 +6,7 @@ import { checkInAction, countsAction, searchTicketsAction } from '@/app/(staff)/
 import type { CheckinResult } from '@/lib/staffTypes'
 
 const MESSAGES: Record<CheckinResult['result'], { title: string; tone: 'ok' | 'warn' | 'bad' }> = {
-  ok: { title: 'Welcome in', tone: 'ok' },
+  ok: { title: 'TICKET APPROVED', tone: 'ok' },
   already: { title: 'Already checked in', tone: 'warn' },
   cancelled: { title: 'Ticket cancelled', tone: 'bad' },
   wrong_event: { title: 'Ticket is for another event', tone: 'bad' },
@@ -16,6 +16,7 @@ const MESSAGES: Record<CheckinResult['result'], { title: string; tone: 'ok' | 'w
 const toneCls = { ok: 'bg-[#1e7a46]', warn: 'bg-[#b7791f]', bad: 'bg-alert' }
 const RESULT_SHOW_MS = 2200
 
+type Approved = { code: string; holder: string; tier: string; order: string; at: string; demo: boolean }
 type Found = { code: string; holder: string; tier: string; order: string; status: string }
 
 /**
@@ -32,6 +33,7 @@ export function Scanner({ eventId }: { eventId: string }) {
   const [result, setResult] = useState<CheckinResult | null>(null)
   const [counts, setCounts] = useState<{ sold: number; checkedIn: number } | null>(null)
   const [found, setFound] = useState<Found[]>([])
+  const [approved, setApproved] = useState<Approved[]>([])
 
   const refreshCounts = useCallback(() => {
     countsAction(eventId)
@@ -46,7 +48,22 @@ export function Scanner({ eventId }: { eventId: string }) {
       const r = await checkInAction(eventId, code).catch((): CheckinResult => ({ result: 'error' }))
       setResult(r)
       if ('vibrate' in navigator) navigator.vibrate(r.result === 'ok' ? 80 : [80, 60, 80])
-      if (r.result === 'ok') refreshCounts()
+      if (r.result === 'ok') {
+        refreshCounts()
+        setApproved((list) =>
+          [
+            {
+              code: r.code ?? code,
+              holder: r.holder ?? '',
+              tier: r.tier ?? '',
+              order: r.order ?? '',
+              at: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+              demo: Boolean(r.demo),
+            },
+            ...list,
+          ].slice(0, 8),
+        )
+      }
       window.setTimeout(() => {
         setResult(null)
         busyRef.current = false
@@ -153,6 +170,26 @@ export function Scanner({ eventId }: { eventId: string }) {
         )}
       </p>
 
+      {approved.length > 0 ? (
+        <section aria-label="Approved tickets" className="mx-4 mt-4 sm:mx-auto sm:w-[28rem]">
+          <h2 className="font-ui text-meta uppercase tracking-wider text-mist">Approved tickets</h2>
+          <ul data-testid="approved-list" className="mt-2 divide-y divide-snow/15">
+            {approved.map((a, i) => (
+              <li key={`${a.code}-${i}`} className="flex items-center justify-between gap-3 py-2 font-ui text-caption">
+                <span>
+                  <strong className="text-[#7be0a4]">✓ TICKET APPROVED</strong>
+                  <span className="block">
+                    {a.holder} · {a.tier} · {a.order}
+                    {a.demo ? ' · DEMO' : ''}
+                  </span>
+                </span>
+                <span className="shrink-0 text-mist">{a.at}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       <form onSubmit={search} className="mx-4 mt-4 flex gap-2 sm:mx-auto sm:w-[28rem]">
         <input
           name="q"
@@ -198,14 +235,14 @@ export function Scanner({ eventId }: { eventId: string }) {
       {msg && result ? (
         <div
           role="alert"
-          className={`fixed inset-0 z-50 flex flex-col items-center justify-center p-8 text-center text-snow ${toneCls[msg.tone]}`}
+          className={`fixed inset-0 z-50 flex flex-col items-center justify-center p-8 text-center text-white ${toneCls[msg.tone]}`}
           onClick={() => {
             setResult(null)
             busyRef.current = false
           }}
         >
           <p className="font-display text-display">{msg.tone === 'ok' ? '✓' : '✕'}</p>
-          <p className="mt-4 font-display text-h1">{msg.title}</p>
+          <p className="mt-4 font-display text-h1" data-testid="scan-result">{msg.title}</p>
           {result.holder ? (
             <p className="mt-4 font-ui text-h3">
               {result.holder} · {result.tier}
@@ -213,7 +250,15 @@ export function Scanner({ eventId }: { eventId: string }) {
           ) : null}
           {result.event ? <p className="mt-2 font-ui text-body">{result.event}</p> : null}
           {result.order ? (
-            <p className="mt-2 font-ui text-meta opacity-80">{result.order}</p>
+            <p className="mt-2 font-ui text-meta opacity-80">
+              {result.order}
+              {result.demo ? ' · DEMO' : ''}
+            </p>
+          ) : null}
+          {result.result === 'already' && result.checkedInAt ? (
+            <p className="mt-2 font-ui text-meta opacity-80">
+              Scanned at {new Date(result.checkedInAt).toLocaleTimeString('en-GB')}
+            </p>
           ) : null}
         </div>
       ) : null}

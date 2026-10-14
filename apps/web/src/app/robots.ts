@@ -8,7 +8,7 @@ export default function robots(): MetadataRoute.Robots {
     : process.env.NODE_ENV === 'production'
   return {
     rules: isProduction
-      ? [{ userAgent: '*', allow: '/', disallow: ['/admin', '/api/', '/staff', '/*/styleguide', '/*/booking/', '/*/account'] }]
+      ? [{ userAgent: '*', allow: '/', disallow: ['/admin', '/api/', '/staff', '/*/styleguide', '/*/booking/', '/*/events/pay'] }]
       : [{ userAgent: '*', disallow: '/' }],
     sitemap: `${siteUrl}/sitemap.xml`,
   }

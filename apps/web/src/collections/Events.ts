@@ -37,6 +37,31 @@ export const Events: CollectionConfig = {
             { name: 'trailerUrl', type: 'text' },
             { name: 'description', type: 'richText', localized: true },
             {
+              name: 'location',
+              type: 'group',
+              label: 'Map location',
+              admin: {
+                description:
+                  'Where the event takes place. Shown on the My Booking map and the event page. Overrides the venue’s location if both are set.',
+              },
+              fields: [
+                { name: 'placeName', type: 'text', admin: { description: 'Optional, e.g. Stora Salen, Stockholm Konserthus.' } },
+                { name: 'address', type: 'textarea', admin: { description: 'Street address, shown to buyers.' } },
+                {
+                  type: 'row',
+                  fields: [
+                    { name: 'latitude', type: 'number', min: -90, max: 90, admin: { description: 'Set by the map below, or type it.' } },
+                    { name: 'longitude', type: 'number', min: -180, max: 180 },
+                  ],
+                },
+                {
+                  name: 'mapPicker',
+                  type: 'ui',
+                  admin: { components: { Field: '/components/admin/EventMapPicker#EventMapPicker' } },
+                },
+              ],
+            },
+            {
               name: 'lineup',
               type: 'array',
               fields: [
@@ -138,18 +163,24 @@ export const Events: CollectionConfig = {
     {
       name: 'startsAt',
       type: 'date',
+      timezone: { required: true, defaultTimezone: 'Europe/Stockholm', supportedTimezones: [{ label: 'Sweden (Stockholm)', value: 'Europe/Stockholm' }] },
       index: true,
       admin: {
         position: 'sidebar',
         date: { pickerAppearance: 'dayAndTime' },
         description:
-          'Leave empty while the date is not confirmed: the event shows “Date to be announced” and tickets open once a date is set.',
+          'Swedish time (Europe/Stockholm) — the website shows exactly this value. Leave empty while the date is not confirmed: the event shows “Date to be announced” and tickets open once a date is set.',
       },
     },
     {
       name: 'endsAt',
       type: 'date',
-      admin: { position: 'sidebar', date: { pickerAppearance: 'dayAndTime' } },
+      timezone: { required: true, defaultTimezone: 'Europe/Stockholm', supportedTimezones: [{ label: 'Sweden (Stockholm)', value: 'Europe/Stockholm' }] },
+      admin: {
+        position: 'sidebar',
+        date: { pickerAppearance: 'dayAndTime' },
+        description: 'Swedish time. Tickets stay on sale until this time. If empty, until midnight of the start day.',
+      },
     },
     {
       name: 'venue',
@@ -201,7 +232,11 @@ export const Events: CollectionConfig = {
       name: 'salesStatus',
       type: 'select',
       defaultValue: 'onSale',
-      admin: { position: 'sidebar' },
+      admin: {
+        position: 'sidebar',
+        description:
+          'Shown to visitors exactly as chosen. The event appears in My Booking only after you press Publish changes. The Get tickets button needs: On sale, a future date, and at least one ticket type that is on sale.',
+      },
       options: [
         { label: 'Announced (not on sale yet)', value: 'announced' },
         { label: 'On sale', value: 'onSale' },
