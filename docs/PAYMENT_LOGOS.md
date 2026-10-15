@@ -1,24 +1,22 @@
-# Accepted payment methods on checkout
+# Payment method buttons on checkout
 
-The payment step shows "Accepted payment methods" (Swish, Apple Pay, Google Pay, Visa, Mastercard, Klarna)
-before the buyer is sent to Stripe.
+The payment step shows "Accepted payment methods" as buttons: Swish, Apple Pay, Google Pay, Visa, Mastercard, Klarna.
+Clicking one sends the buyer straight to Stripe's secure payment page (same as "Buy now").
 
-## 1. Add the logo files
-The logos belong to each brand, so they are not in the repo. Download the official SVG for each from the
-brand's own asset page (search "<brand> brand assets") and save them in `apps/web/public/payment-logos/`:
+- Visa, Mastercard, Apple Pay and Google Pay open Stripe's card page (Stripe shows Apple/Google Pay there when the
+  buyer's device supports it).
+- Klarna opens Stripe's page limited to Klarna. Swish opens it limited to Swish.
+- If Stripe cannot offer that method (not switched on for the account, wrong currency/country), the API falls back
+  to Stripe's normal page with every enabled method, so the click never dead-ends.
 
-    swish.svg  apple-pay.svg  google-pay.svg  visa.svg  mastercard.svg  klarna.svg
+The icons come from the MIT-licensed npm package `react-pay-icons`. The marks belong to their owners.
 
-Missing file = the badge shows the plain name, so nothing breaks.
+## Make sure each method is really on in Stripe
+Stripe Dashboard -> Settings -> Payment methods:
+- Cards (Visa, Mastercard): on by default. Apple Pay needs the domain registered; Google Pay works with cards.
+- Klarna: turn on and finish Stripe's activation (SEK is supported for Swedish buyers).
+- Swish: turn on; needs a Swedish business entity and SEK. If Stripe will not enable it, delete the `swish` line in
+  `apps/web/src/components/account/PaymentMethods.tsx` so you do not advertise a method buyers can't use.
 
-## 2. Make Stripe really offer them (important: do not show a logo for a method that is off)
-Stripe Dashboard → Settings → Payment methods. Switch on:
-- Cards (Visa, Mastercard) - on by default. Apple Pay and Google Pay come with cards automatically
-  (Apple Pay needs the domain registered under Settings → Payment methods → Apple Pay).
-- Klarna - turn on and complete Stripe's activation.
-- Swish - turn on; needs a Swedish business entity and SEK. If Stripe will not enable it for the account,
-  remove `swish` from `PAYMENT_METHODS` in `components/account/PaymentMethods.tsx`.
-
-The booking API lets Stripe choose from what is enabled. To force a list instead, set on Render
-`STRIPE_PAYMENT_METHODS=card,klarna,swish` (leave empty normally).
-Klarna and Swish also depend on currency (SEK) and the buyer's country.
+Optional on Render: `STRIPE_PAYMENT_METHODS=card,klarna,swish` forces that exact list for every checkout
+(then the clicked button is ignored). Leave it empty normally.

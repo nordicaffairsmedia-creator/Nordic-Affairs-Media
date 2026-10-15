@@ -28,6 +28,7 @@
     "payload": "3.90.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-pay-icons": "^4.0.0",
     "server-only": "^0.0.1",
     "sharp": "^0.34.3",
     "zod": "^4.1.0"

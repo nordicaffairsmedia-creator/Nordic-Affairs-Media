@@ -7,7 +7,7 @@ import type { CheckoutLabels } from '@/lib/checkoutLabels'
 import { COUNTRIES, countryName } from '@/lib/countries'
 import { readCart, saveCart } from '@/lib/cart'
 import { SeatMap, type Seating } from '@/components/account/SeatMap'
-import { PaymentMethods } from '@/components/account/PaymentMethods'
+import { PaymentMethods, type PayMethod } from '@/components/account/PaymentMethods'
 
 type Tier = { tierId: string; name: string; description?: string | null; price: number }
 type ServiceKey = 'smsTickets' | 'refundProtection' | 'reminder'
@@ -363,7 +363,7 @@ export function CheckoutFlow({
     setStep(avail && avail.services.length > 0 ? 'services' : 'payment')
   }
 
-  async function buyNow() {
+  async function buyNow(method?: PayMethod) {
     setBusy(true)
     setError(null)
     try {
@@ -384,6 +384,7 @@ export function CheckoutFlow({
           services,
           acceptTerms: buyer.terms,
           webOrigin: window.location.origin,
+          ...(method ? { paymentMethod: method } : {}),
           returnTo: 'account',
           items: lines.map((x) => ({ tierId: x.tier.tierId, quantity: x.quantity })),
           ...(seated ? { seats: seatSel } : {}),
@@ -723,7 +724,7 @@ export function CheckoutFlow({
                   </span>
                 </label>
               )}
-              {!free ? <PaymentMethods title={l.hubPayMethods} note={l.hubPayMethodsNote} /> : null}
+              {!free ? <PaymentMethods title={l.hubPayMethods} note={l.hubPayMethodsNote} disabled={busy || totalQty === 0} onPick={(m) => void buyNow(m)} /> : null}
               {!free && avail?.demoPayments ? (
                 <p className="font-ui text-caption text-brass-text">{l.payDemoNote}</p>
               ) : null}

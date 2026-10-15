@@ -85,6 +85,8 @@ const body = z.object({
     })
     .optional(),
   webOrigin: z.string().trim().max(200).optional(),
+  // Which payment button the buyer clicked. Only narrows Stripe's page to that method; falls back to all methods if Stripe can't.
+  paymentMethod: z.enum(['card', 'klarna', 'swish']).optional(),
   acceptTerms: z.literal(true),
   // Set by the My Booking hub so an abandoned payment returns there. Absent = Events page.
   returnTo: z.enum(['account']).optional(),
@@ -402,11 +404,10 @@ async function createOrder(args: {
 
     // Stripe keeps a checkout page open for at least 30 minutes. Our hold may be shorter;
     // if someone pays after their hold ended, fulfilOrder re-checks stock (and refunds if gone).
-    const session = await s.checkout.sessions.create({
+    const params: Stripe.Checkout.SessionCreateParams = {
       mode: 'payment',
       // Unset = Stripe shows every method enabled in Dashboard → Settings → Payment methods
       // (cards, Apple Pay, Google Pay, Klarna, Swish ...). Set STRIPE_PAYMENT_METHODS to force a list.
-      ...(paymentMethodTypes() ? { payment_method_types: paymentMethodTypes() } : {}),
       // If the buyer already gave email and phone in step 2 they are prefilled / skipped. Otherwise (Events page)
       // Stripe's page asks for them and the webhook copies them onto the order.
       ...(order.email ? { customer_email: order.email } : {}),
@@ -426,7 +427,23 @@ async function createOrder(args: {
       cancel_url: `${order.webOrigin ?? env.WEB_URL}/${order.locale}/${
         'events'
       }/${order.eventSlug}?checkout=cancelled#tickets`,
-    })
+    }
+    const forced = paymentMethodTypes()
+    const chosen = input.paymentMethod
+    let session: Stripe.Checkout.Session
+    if (forced) {
+      session = await s.checkout.sessions.create({ ...params, payment_method_types: forced })
+    } else if (chosen) {
+      try {
+        session = await s.checkout.sessions.create({ ...params, payment_method_types: [chosen] })
+      } catch (e) {
+        // Method not enabled on the Stripe account / not valid for this currency: show everything instead.
+        console.warn('[checkout] Stripe refused payment method', chosen, '- retrying with all methods', (e as Error).message)
+        session = await s.checkout.sessions.create(params)
+      }
+    } else {
+      session = await s.checkout.sessions.create(params)
+    }
     await orders().updateOne({ _id: order._id }, { $set: { stripeSessionId: session.id } })
     if (!session.url) throw new Error('Stripe returned no checkout URL')
     return { ref: order._id, url: session.url }

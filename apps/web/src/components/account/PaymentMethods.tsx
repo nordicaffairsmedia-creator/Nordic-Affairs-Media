@@ -1,55 +1,59 @@
 'use client'
 
-import { useState } from 'react'
+import type { ReactElement } from 'react'
+import { Applepay, Googlepay, Klarna, Mastercard, Swish, Visa } from 'react-pay-icons'
 
 /**
- * "Accepted payment methods" strip shown on the payment step, before the buyer is sent to Stripe.
+ * "Accepted payment methods" buttons on the payment step. Clicking one sends the buyer straight to
+ * Stripe's secure payment page (the same as Buy now), narrowed to that method when Stripe offers it.
  *
- * Each badge uses the brand's own logo file from /public/payment-logos/<file>. Those logo files are
- * the property of Swish, Apple, Google, Visa, Mastercard and Klarna, so they are NOT bundled here:
- * download each one from the brand's official asset page and drop it into that folder
- * (see docs/PAYMENT_LOGOS.md). Until a file exists the badge shows the plain name instead, so the
- * page never has a broken image.
+ *   method 'card'   -> Apple Pay, Google Pay, Visa, Mastercard (Stripe shows the wallet when the device supports it)
+ *   method 'klarna' -> Klarna
+ *   method 'swish'  -> Swish
+ *
+ * The icons come from the MIT-licensed `react-pay-icons` package; the marks themselves belong to
+ * Swish, Apple, Google, Visa, Mastercard and Klarna.
  */
-export const PAYMENT_METHODS = [
-  { key: 'swish', name: 'Swish', file: 'swish.svg' },
-  { key: 'apple-pay', name: 'Apple Pay', file: 'apple-pay.svg' },
-  { key: 'google-pay', name: 'Google Pay', file: 'google-pay.svg' },
-  { key: 'visa', name: 'Visa', file: 'visa.svg' },
-  { key: 'mastercard', name: 'Mastercard', file: 'mastercard.svg' },
-  { key: 'klarna', name: 'Klarna', file: 'klarna.svg' },
-] as const
+export type PayMethod = 'card' | 'klarna' | 'swish'
 
-function Badge({ name, file }: { name: string; file: string }) {
-  const [missing, setMissing] = useState(false)
-  return (
-    <li
-      data-testid={`paymethod-${file.replace('.svg', '')}`}
-      className="flex h-10 min-w-16 items-center justify-center rounded-sm border border-rule bg-white px-3"
-    >
-      {missing ? (
-        <span className="font-ui text-meta font-semibold text-black">{name}</span>
-      ) : (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={`/payment-logos/${file}`}
-          alt={name}
-          height={24}
-          className="h-6 w-auto max-w-24 object-contain"
-          onError={() => setMissing(true)}
-        />
-      )}
-    </li>
-  )
-}
+const METHODS: { key: string; name: string; method: PayMethod; icon: ReactElement }[] = [
+  { key: 'swish', name: 'Swish', method: 'swish', icon: <Swish /> },
+  { key: 'apple-pay', name: 'Apple Pay', method: 'card', icon: <Applepay /> },
+  { key: 'google-pay', name: 'Google Pay', method: 'card', icon: <Googlepay /> },
+  { key: 'visa', name: 'Visa', method: 'card', icon: <Visa /> },
+  { key: 'mastercard', name: 'Mastercard', method: 'card', icon: <Mastercard /> },
+  { key: 'klarna', name: 'Klarna', method: 'klarna', icon: <Klarna /> },
+]
 
-export function PaymentMethods({ title, note }: { title: string; note: string }) {
+export function PaymentMethods({
+  title,
+  note,
+  disabled,
+  onPick,
+}: {
+  title: string
+  note: string
+  disabled?: boolean
+  onPick: (method: PayMethod) => void
+}) {
   return (
     <div data-testid="payment-methods" className="space-y-3 border-t border-rule pt-4">
       <p className="font-ui text-caption font-semibold text-ink">{title}</p>
-      <ul className="flex flex-wrap gap-2" aria-label={title}>
-        {PAYMENT_METHODS.map((m) => (
-          <Badge key={m.key} name={m.name} file={m.file} />
+      <ul className="flex flex-wrap gap-3" aria-label={title}>
+        {METHODS.map((m) => (
+          <li key={m.key}>
+            <button
+              type="button"
+              data-testid={`paymethod-${m.key}`}
+              aria-label={m.name}
+              title={m.name}
+              disabled={disabled}
+              onClick={() => onPick(m.method)}
+              className="block h-11 w-[68px] overflow-hidden rounded-md bg-white transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fjord disabled:cursor-wait disabled:opacity-60 [&_svg]:size-full"
+            >
+              {m.icon}
+            </button>
+          </li>
         ))}
       </ul>
       <p className="meta">{note}</p>
