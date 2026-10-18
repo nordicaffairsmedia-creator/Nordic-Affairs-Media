@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState, useState } from 'react'
+import { ChevronDown, Loader2 } from 'lucide-react'
 import { sendEnquiry, type ContactState } from '@/app/(frontend)/[locale]/contact/actions'
 
 export type ContactLabels = {
@@ -31,102 +32,186 @@ export function ContactForm({
     status: 'idle',
   })
   const [startedAt] = useState(() => Date.now())
-  const input =
-    'min-h-12 w-full border border-rule bg-snow px-3 font-ui text-body focus-visible:border-fjord'
+
+  const inputClasses =
+    'w-full rounded-xl border border-rule bg-paper/90 px-4 py-3 text-[14px] text-ink placeholder-slate/50 transition-all duration-200 focus:border-fjord focus:bg-paper focus:outline-none focus:ring-1 focus:ring-fjord/50'
 
   if (state.status === 'sent') {
     return (
-      <p role="status" className="border-l-2 border-fjord bg-snow p-5 font-display text-h3">
-        {labels.messageSent}
-      </p>
+      <div
+        role="status"
+        className="rounded-2xl border border-emerald-500/40 bg-snow/60 p-8 backdrop-blur-md shadow-lg"
+      >
+        <div className="flex items-start gap-3.5">
+          <span className="text-2xl">✅</span>
+          <div>
+            <h3 className="font-serif text-2xl font-bold text-ink">Message Sent</h3>
+            <p className="mt-1 text-sm leading-relaxed text-slate">{labels.messageSent}</p>
+          </div>
+        </div>
+      </div>
     )
   }
 
   return (
-    <form action={action} className="space-y-5">
-      <input type="hidden" name="locale" value={locale} />
-      <input type="hidden" name="startedAt" value={startedAt} />
-      {/* Honeypot: hidden from people and screen readers, tempting for bots. */}
-      <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
-        <label>
-          Website <input name="website" tabIndex={-1} autoComplete="off" defaultValue="" />
-        </label>
-      </div>
-      <label className="block">
-        <span className="meta mb-1 block">{labels.enquiryType}</span>
-        <select name="type" required defaultValue="general" className={input}>
-          {labels.types.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <div className="grid gap-5 sm:grid-cols-2">
-        <label className="block">
-          <span className="meta mb-1 block">{labels.fullName}</span>
+    <div className="rounded-2xl border border-rule/80 bg-snow/35 p-6 sm:p-8 backdrop-blur-md shadow-lg">
+      <form action={action} className="space-y-5">
+        <input type="hidden" name="locale" value={locale} />
+        <input type="hidden" name="startedAt" value={startedAt} />
+
+        {/* Honeypot field */}
+        <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
+          <label>
+            Website <input name="website" tabIndex={-1} autoComplete="off" defaultValue="" />
+          </label>
+        </div>
+
+        {/* Enquiry Type Selector */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate">
+            <span>📋</span>
+            <span>{labels.enquiryType}</span>
+          </label>
+          <div className="relative">
+            <select
+              name="type"
+              required
+              defaultValue="general"
+              className={`${inputClasses} cursor-pointer appearance-none pr-10`}
+            >
+              {labels.types.map((t) => (
+                <option key={t.value} value={t.value} className="bg-paper text-ink">
+                  {t.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-slate" />
+          </div>
+        </div>
+
+        {/* Full Name & Email Fields */}
+        <div className="grid gap-5 sm:grid-cols-2">
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate">
+              <span>👤</span>
+              <span>{labels.fullName}</span>
+            </label>
+            <input
+              name="name"
+              required
+              minLength={2}
+              maxLength={80}
+              autoComplete="name"
+              placeholder="e.g. Henrik Lindqvist"
+              className={inputClasses}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate">
+              <span>📧</span>
+              <span>{labels.emailLabel}</span>
+            </label>
+            <input
+              name="email"
+              type="email"
+              required
+              maxLength={200}
+              autoComplete="email"
+              placeholder="name@organization.com"
+              className={inputClasses}
+            />
+          </div>
+        </div>
+
+        {/* Subject */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate">
+            <span>📝</span>
+            <span>{labels.subject}</span>
+          </label>
           <input
-            name="name"
+            name="subject"
             required
-            minLength={2}
-            maxLength={80}
-            autoComplete="name"
-            className={input}
+            minLength={3}
+            maxLength={150}
+            placeholder="Subject of your message"
+            className={inputClasses}
           />
-        </label>
-        <label className="block">
-          <span className="meta mb-1 block">{labels.emailLabel}</span>
-          <input
-            name="email"
-            type="email"
+        </div>
+
+        {/* Message */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate">
+            <span>💬</span>
+            <span>{labels.message}</span>
+          </label>
+          <textarea
+            name="message"
             required
-            maxLength={200}
-            autoComplete="email"
-            className={input}
+            minLength={10}
+            maxLength={5000}
+            rows={6}
+            placeholder="Please detail your request or enquiry..."
+            className={`${inputClasses} py-3.5 resize-y leading-relaxed`}
           />
-        </label>
-      </div>
-      <label className="block">
-        <span className="meta mb-1 block">{labels.subject}</span>
-        <input name="subject" required minLength={3} maxLength={150} className={input} />
-      </label>
-      <label className="block">
-        <span className="meta mb-1 block">{labels.message}</span>
-        <textarea
-          name="message"
-          required
-          minLength={10}
-          maxLength={5000}
-          rows={7}
-          className={`${input} py-3`}
-        />
-      </label>
-      <label className="flex items-start gap-3 font-ui text-caption">
-        <input
-          type="checkbox"
-          name="consent"
-          required
-          className="mt-1 size-5 accent-[var(--color-fjord)]"
-        />
-        <span>
-          {labels.privacyConsent}{' '}
-          <a href={privacyHref} target="_blank" className="text-fjord underline">
-            {labels.privacyPolicy}
-          </a>
-        </span>
-      </label>
-      {state.status === 'error' ? (
-        <p role="alert" className="font-ui text-caption text-alert">
-          {labels.messageError}
-        </p>
-      ) : null}
-      <button
-        type="submit"
-        disabled={pending}
-        className="min-h-12 bg-ink px-6 font-ui text-caption font-semibold text-snow hover:bg-fjord-deep disabled:opacity-40"
-      >
-        {pending ? labels.processing : labels.sendMessage}
-      </button>
-    </form>
+        </div>
+
+        {/* Privacy Consent Checkbox */}
+        <div className="rounded-xl border border-rule/60 bg-paper/40 p-4">
+          <label className="flex cursor-pointer items-start gap-3 text-xs text-slate">
+            <input
+              type="checkbox"
+              name="consent"
+              required
+              className="mt-0.5 size-4 rounded border-rule bg-paper accent-fjord transition-colors focus:ring-1 focus:ring-fjord"
+            />
+            <span className="leading-relaxed">
+              {labels.privacyConsent}{' '}
+              <a
+                href={privacyHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-fjord underline underline-offset-2 hover:text-ink transition-colors"
+              >
+                {labels.privacyPolicy}
+              </a>
+            </span>
+          </label>
+        </div>
+
+        {/* Error Alert */}
+        {state.status === 'error' && (
+          <div
+            role="alert"
+            className="flex items-center gap-2.5 rounded-xl border border-alert/30 bg-alert/10 p-4 text-xs font-medium text-alert"
+          >
+            <span>⚠️</span>
+            <span>{labels.messageError}</span>
+          </div>
+        )}
+
+        {/* Submit Button */}
+        <div>
+          <button
+            type="submit"
+            disabled={pending}
+            className="inline-flex min-h-11 items-center justify-center gap-2.5 rounded-xl bg-fjord-deep px-8 py-3 text-xs font-bold uppercase tracking-[0.08em] text-white shadow transition-all duration-150 hover:bg-fjord hover:text-navy-deep active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                <span>{labels.processing}</span>
+              </>
+            ) : (
+              <>
+                <span>📨</span>
+                <span>{labels.sendMessage}</span>
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
   )
 }

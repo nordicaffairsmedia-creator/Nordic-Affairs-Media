@@ -15,10 +15,10 @@ export function EnquireButton({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className={`inline-flex min-h-11 items-center gap-2 border border-fjord-deep bg-fjord-wash px-5 font-ui text-caption font-semibold uppercase tracking-[0.06em] text-ink hover:bg-fjord-deep hover:text-snow ${className}`}
+      className={`inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-md border border-slate-700/80 bg-[#0d1c2d] hover:bg-[#132438] hover:border-slate-600 text-white font-semibold text-[11.5px] uppercase tracking-[0.08em] shadow-sm transition-all duration-150 ${className}`}
     >
-      <MessageCircle aria-hidden="true" className="size-4" />
-      {label}
+      <MessageCircle aria-hidden="true" className="size-4 text-emerald-400 shrink-0" strokeWidth={2} />
+      <span>{label}</span>
     </a>
   )
 }

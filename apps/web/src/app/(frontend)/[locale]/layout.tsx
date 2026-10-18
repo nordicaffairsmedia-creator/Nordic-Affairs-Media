@@ -21,6 +21,7 @@ import { legacyAssetUrl } from '@/lib/wordpress/legacyAsset'
 import { whatsappUrl } from '@/lib/nav'
 import { ChatWidget, type ChatLabels } from '@/components/assistant/ChatWidget'
 import { CookieConsent } from '@/components/privacy/CookieConsent'
+import { BackgroundMusic } from '@/components/layout/BackgroundMusic'
 import { Tracker } from '@/components/analytics/Tracker'
 import '@/styles/globals.css'
 
@@ -130,6 +131,13 @@ export default async function LocaleLayout({
       className={`${newsreader.variable} ${hanken.variable} ${scriptFonts[locale]}`}
     >
       <head>
+        {/* Preconnect and stylesheet for Bricolage Grotesque */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&display=swap"
+          rel="stylesheet"
+        />
         {/* Applies the saved light/navy choice before the first paint. */}
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>
@@ -162,6 +170,7 @@ export default async function LocaleLayout({
           }}
         />
         <ChatWidget locale={locale} labels={chatLabels(t)} whatsappHref={whatsappUrl(settings.whatsapp, t.whatsappMessage)} />
+        <BackgroundMusic />
         <Tracker />
       </body>
     </html>

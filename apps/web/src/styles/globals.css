@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&display=swap');
 
 /*
  * NORDIC AFFAIRS MEDIA — DESIGN TOKENS
@@ -482,3 +483,154 @@
 @media (prefers-reduced-motion: reduce) {
   .staff-rise { animation: none; }
 }
+
+/* Animated Emojis for Expertise Cards */
+@keyframes emojiFloat {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes emojiSway {
+  0%, 100% {
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(-4deg) scale(1.03);
+  }
+  75% {
+    transform: rotate(4deg) scale(1.03);
+  }
+}
+
+@keyframes emojiPulseSoft {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+@keyframes emojiBounceSoft {
+  0%, 100% {
+    transform: translateY(0px) scale(1);
+  }
+  40% {
+    transform: translateY(-4px) scale(1.03);
+  }
+  60% {
+    transform: translateY(-2px) scale(1.01);
+  }
+}
+
+@keyframes emojiTwinkle {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.4));
+  }
+  50% {
+    transform: scale(1.08) rotate(8deg);
+    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
+  }
+}
+
+.animate-emoji-float {
+  display: inline-block;
+  animation: emojiFloat 3.2s ease-in-out infinite;
+}
+
+.animate-emoji-sway {
+  display: inline-block;
+  animation: emojiSway 3.6s ease-in-out infinite;
+  transform-origin: 50% 90%;
+}
+
+.animate-emoji-pulse {
+  display: inline-block;
+  animation: emojiPulseSoft 2.8s ease-in-out infinite;
+}
+
+.animate-emoji-bounce {
+  display: inline-block;
+  animation: emojiBounceSoft 2.9s cubic-bezier(0.28, 0.84, 0.42, 1) infinite;
+}
+
+.animate-emoji-twinkle {
+  display: inline-block;
+  animation: emojiTwinkle 2.6s ease-in-out infinite;
+}
+
+/*
+ * Bricolage Grotesque font class & Word Merge Animation
+ */
+.font-bricolage {
+  font-family: 'Bricolage Grotesque', sans-serif !important;
+}
+
+@keyframes wordMerge {
+  0% {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translate3d(var(--merge-x, 0px), 12px, 0) scale(0.92);
+    letter-spacing: 0.08em;
+  }
+  60% {
+    opacity: 0.95;
+    filter: blur(1px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate3d(0, 0, 0) scale(1);
+    letter-spacing: normal;
+  }
+}
+
+.animate-word-merge {
+  display: inline-block;
+  will-change: transform, opacity, filter;
+  animation: wordMerge 1.1s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--w-delay, 0) * 85ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-word-merge {
+    animation: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+  }
+}
+
+/*
+ * Sound equalizer animation for background music player
+ */
+@keyframes soundBarPulse {
+  0%, 100% {
+    height: 3px;
+  }
+  50% {
+    height: 14px;
+  }
+}
+
+.animate-sound-bar-1 {
+  animation: soundBarPulse 0.9s ease-in-out infinite;
+}
+
+.animate-sound-bar-2 {
+  animation: soundBarPulse 1.3s ease-in-out infinite 0.15s;
+}
+
+.animate-sound-bar-3 {
+  animation: soundBarPulse 1.1s ease-in-out infinite 0.35s;
+}
+
+.animate-sound-bar-4 {
+  animation: soundBarPulse 0.8s ease-in-out infinite 0.2s;
+}
+

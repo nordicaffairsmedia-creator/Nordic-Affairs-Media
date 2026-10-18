@@ -239,6 +239,11 @@ export const pressMentions: { outlet: string; url: string; logo: string }[] = [
     url: 'https://indianexpress.com/article/cities/mumbai/maharashtra-cm-devendra-fadnavis-swedish-pm-discuss-investment-prospects-in-state-4888100/',
   },
   {
+    outlet: 'The Indian Express',
+    logo: `${U}Group-512.png`,
+    url: 'https://indianexpress.com/article/cities/mumbai/maharashtra-cm-devendra-fadnavis-swedish-pm-discuss-investment-prospects-in-state-4888100/',
+  },
+  {
     outlet: 'LatestLY',
     logo: `${U}Group-513.png`,
     url: 'https://www.latestly.com/agency-news/world-news-eam-s-jaishankar-holds-meeting-with-sweden-pm-ulf-kristersson-5128689.html',

@@ -10,3 +10,4 @@ apps/web/media
 apps/web/documents
 *.tsbuildinfo
 apps/web/videos
+nam-main/

@@ -43,6 +43,11 @@ export function SiteHeader({ locale, t, settings, galleries }: Props) {
         <div className="container-max flex h-10 items-center justify-between">
           <TodayDate locale={locale} initial={today} labels={{ india: t.timeIndia, sweden: t.timeSweden, choose: t.timeZoneLabel }} />
           <div className="flex items-center gap-4">
+            {bookingApiUrl ? (
+              <Link href={href(locale, '/account')} className="meta hover:text-ink">
+                {t.myBookings}
+              </Link>
+            ) : null}
             <LanguageSwitcher current={locale} label={t.language} />
             <ThemeToggle
               labels={{ light: t.themeLight, dark: t.themeDark }}
