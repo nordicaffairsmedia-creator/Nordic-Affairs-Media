@@ -105,7 +105,7 @@ export default async function SearchPage({ params, searchParams }: Props) {
         <section className="mt-12" aria-label={t.articles}>
           <SectionHeading title={t.articles} />
           <ul className="space-y-8">
-            {articles.docs.map((a) => (
+            {articles.docs.map((a: any) => (
               <li key={a.id} className="border-t border-rule pt-6 first:border-0 first:pt-0">
                 <StoryCard
                   article={a}

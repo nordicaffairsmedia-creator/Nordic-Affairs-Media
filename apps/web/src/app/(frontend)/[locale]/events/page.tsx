@@ -301,7 +301,7 @@ async function Discover({
             <EmptyState title={filtering ? t.noResults : t.upcomingEvents} body={t.noEvents} />
           ) : (
             <ul className="grid gap-x-8 gap-y-12 md:grid-cols-2 lg:grid-cols-3">
-              {upcoming.docs.map((e) => (
+              {upcoming.docs.map((e: any) => (
                 <li key={e.id}>
                   <HubEventCard event={e} locale={locale} t={t} />
                 </li>

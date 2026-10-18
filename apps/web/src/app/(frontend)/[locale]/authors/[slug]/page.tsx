@@ -116,7 +116,7 @@ export default async function AuthorPage({ params, searchParams }: Props) {
           <p className="text-slate">{t.noStories}</p>
         ) : (
           <ul className="grid gap-8 lg:grid-cols-2 lg:gap-x-12">
-            {result.docs.map((a) => (
+            {result.docs.map((a: any) => (
               <li key={a.id} className="border-t border-rule pt-6">
                 <StoryCard
                   article={a}

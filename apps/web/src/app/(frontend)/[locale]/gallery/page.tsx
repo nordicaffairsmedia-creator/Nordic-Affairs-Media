@@ -54,7 +54,7 @@ export default async function GalleryIndex({ params }: Props) {
         <ViewSwitch labels={{ label: t.viewLabel, grid: t.viewGrid, list: t.viewList }}>
           {/* Grid */}
           <ul className="mt-6 grid gap-x-8 gap-y-12 group-data-[view=list]/view:hidden sm:grid-cols-2 lg:grid-cols-3">
-            {galleries.docs.map((g) => (
+            {galleries.docs.map((g: any) => (
               <li key={g.id}>
                 <Link href={href(locale, `/gallery/${g.slug}`)} className="story block">
                   <MediaImage
@@ -72,7 +72,7 @@ export default async function GalleryIndex({ params }: Props) {
           </ul>
           {/* List */}
           <ul className="mt-6 hidden divide-y divide-rule border-y border-rule group-data-[view=list]/view:block">
-            {galleries.docs.map((g) => (
+            {galleries.docs.map((g: any) => (
               <li key={g.id}>
                 <Link
                   href={href(locale, `/gallery/${g.slug}`)}

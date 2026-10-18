@@ -1,6 +1,6 @@
 import 'server-only'
 import { cache } from 'react'
-import { getPayload } from 'payload'
+import { getPayload, type Payload } from 'payload'
 import config from '@payload-config'
 
 import { settings as settingsDefaults, aboutDefaults, pressMentions as defaultPressMentions } from '@/lib/wordpress/content'
@@ -296,14 +296,14 @@ function createMockPayload(): any {
 }
 
 /** One Payload client per request (React `cache`), reused across server components. Falls back to mock data if MongoDB is offline for pure frontend development. */
-export const getPayloadClient = cache(async () => {
+export const getPayloadClient = cache(async (): Promise<Payload> => {
   if (process.env.SKIP_DB === 'true' || !process.env.DATABASE_URI || process.env.DATABASE_URI.includes('dummy')) {
-    return createMockPayload()
+    return createMockPayload() as unknown as Payload
   }
   try {
     return await getPayload({ config })
   } catch {
-    return createMockPayload()
+    return createMockPayload() as unknown as Payload
   }
 })
 

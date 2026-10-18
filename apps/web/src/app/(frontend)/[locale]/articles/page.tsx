@@ -43,7 +43,7 @@ export default async function ArticlesPage({ params, searchParams }: Props) {
       ) : (
         <>
           <div className="mt-10 grid gap-x-8 gap-y-12 md:grid-cols-2 lg:grid-cols-3">
-            {result.docs.map((a) => (
+            {result.docs.map((a: any) => (
               <StoryCard key={a.id} article={a} locale={locale} t={t} variant="standard" headingLevel="h2" />
             ))}
           </div>
