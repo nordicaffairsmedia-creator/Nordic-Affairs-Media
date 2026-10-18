@@ -69,26 +69,26 @@ async function getAbout(locale: Locale) {
   const list = <T,>(v: T[] | null | undefined, fallback: T[]) => (v && v.length ? v : fallback)
   return {
     title: str(g?.title, D.title),
-    paragraphs: list(g?.paragraphs?.map((p) => p.text ?? '').filter(Boolean), D.paragraphs),
+    paragraphs: list(g?.paragraphs?.map((p: any) => p.text ?? '').filter(Boolean), D.paragraphs),
     image: g?.image && isDoc(g.image) ? g.image : null,
     expertiseEyebrow: str(g?.expertiseEyebrow, D.expertiseEyebrow),
     expertiseTitle: str(g?.expertiseTitle, D.expertiseTitle),
     expertise: list(
       g?.expertise
-        ?.filter((e) => e.label)
-        .map((e) => ({ label: e.label as string, icon: (e.icon ?? 'globe') as string })),
+        ?.filter((e: any) => e.label)
+        .map((e: any) => ({ label: e.label as string, icon: (e.icon ?? 'globe') as string })),
       D.expertise,
     ),
     eventsTitle: str(g?.eventsTitle, D.eventsTitle),
     eventsIntro: str(g?.eventsIntro, D.eventsIntro),
-    events: list(g?.events?.map((e) => e.label ?? '').filter(Boolean), D.events),
+    events: list(g?.events?.map((e: any) => e.label ?? '').filter(Boolean), D.events),
     ministersTitle: str(g?.ministersTitle, D.ministersTitle),
-    ministers: list(g?.ministers?.map((m) => m.name ?? '').filter(Boolean), D.ministers),
+    ministers: list(g?.ministers?.map((m: any) => m.name ?? '').filter(Boolean), D.ministers),
     ministersNote: str(g?.ministersNote, D.ministersNote),
     pillars: list(
       g?.pillars
-        ?.filter((p) => p.title)
-        .map((p) => ({
+        ?.filter((p: any) => p.title)
+        .map((p: any) => ({
           title: p.title as string,
           text: p.text ?? '',
           icon: (p.icon ?? 'globe') as string,
@@ -465,7 +465,7 @@ export default async function AboutPage({ params }: Props) {
   const press =
     settings.pressMentions && settings.pressMentions.length >= 20
       ? settings.pressMentions
-      : defaultPressMentions.map((p, i) => ({
+      : defaultPressMentions.map((p: any, i: number) => ({
           id: String(i + 1),
           outlet: p.outlet,
           url: p.url,

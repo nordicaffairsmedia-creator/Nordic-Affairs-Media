@@ -198,7 +198,7 @@ function createMockPayload(): any {
             { id: '4', value: '100+', label: 'Trusted Partnerships' },
             { id: '5', value: '24/7', label: 'Media Coverage Support' },
           ],
-          pressMentions: defaultPressMentions.map((p, i) => ({
+          pressMentions: defaultPressMentions.map((p: any, i: number) => ({
             id: String(i + 1),
             outlet: p.outlet,
             url: p.url,
