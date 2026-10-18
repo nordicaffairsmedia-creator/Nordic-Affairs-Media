@@ -202,7 +202,7 @@ function createMockPayload(): any {
             id: String(i + 1),
             outlet: p.outlet,
             url: p.url,
-            logo: { url: p.logo, alt: p.outlet },
+            logo: { id: String(i + 1), url: p.logo, alt: p.outlet },
           })),
         }
       }

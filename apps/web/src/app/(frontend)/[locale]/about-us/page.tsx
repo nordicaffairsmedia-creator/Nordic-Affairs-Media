@@ -469,7 +469,7 @@ export default async function AboutPage({ params }: Props) {
           id: String(i + 1),
           outlet: p.outlet,
           url: p.url,
-          logo: { url: p.logo, alt: p.outlet },
+          logo: { id: String(i + 1), url: p.logo, alt: p.outlet },
         }))
   const stories = storiesFor(locale)
   const heading = `${bebas.className} tracking-[1.4px] leading-none`
@@ -838,9 +838,7 @@ export default async function AboutPage({ params }: Props) {
               const logoUrl =
                 typeof p.logo === 'string'
                   ? p.logo
-                  : isDoc(p.logo)
-                  ? p.logo.url
-                  : (p.logo as any)?.url
+                  : (p.logo as any)?.url ?? ''
 
               return (
                 <li
