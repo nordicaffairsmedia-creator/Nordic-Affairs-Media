@@ -45,7 +45,7 @@ export function TranslateRunner({ disabled }: { disabled: boolean }) {
         if (r.ok) update(item.id, { status: r.data, state: 'done' })
         else {
           update(item.id, { status: r.error, state: 'error' })
-          if (/OPENAI_API_KEY|HTTP 401|no credit|busy right now|not accepted/.test(r.error)) throw new Error(r.error)
+          if (/API_KEY|HTTP 401|HTTP 403|no credit|limit is used up|busy right now|not accepted/.test(r.error)) throw new Error(r.error)
         }
       }
     } catch (e) {
