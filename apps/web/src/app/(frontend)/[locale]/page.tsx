@@ -5,7 +5,6 @@ import { getDictionary } from '@/i18n/getDictionary'
 import { getHomepage, getSiteChrome } from '@/lib/queries'
 import { buildMetadata } from '@/lib/seo'
 import { href, siteUrl } from '@/lib/site'
-import { PublicationFeature } from '@/components/editorial/PublicationFeature'
 import { NewsletterPanel } from '@/components/editorial/NewsletterPanel'
 import { HeroSlideshow, type HeroImage } from '@/components/editorial/HeroSlideshow'
 import { getPayloadClient } from '@/lib/payload'
@@ -99,7 +98,7 @@ export default async function HomePage({ params }: Params) {
     ) : null
 
   // The landing page never lists articles: they live only under the Articles tab.
-  // It shows the slideshow, then the latest issue and the newsletter when set in the CMS.
+  // It shows the slideshow and the newsletter. Publications live only on the About us page.
   if (!hero) {
     return (
       <div className="container-wide py-16">
@@ -115,9 +114,6 @@ export default async function HomePage({ params }: Params) {
       <JsonLd data={organization} />
       {pageHeading}
       {hero}
-      {home.publication ? (
-        <PublicationFeature publication={home.publication} locale={locale} t={t} />
-      ) : null}
       {home.showNewsletter ? <NewsletterPanel t={t} locale={locale} /> : null}
     </>
   )
