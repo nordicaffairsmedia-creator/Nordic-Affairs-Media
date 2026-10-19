@@ -25,7 +25,7 @@ export const Videos: CollectionConfig = {
   orderable: true,
   admin: { group: 'Media library', useAsTitle: 'title', defaultColumns: ['title', 'filename', 'format'] },
   access: { read: anyone, create: staff, update: staff, delete: staff },
-  upload: { mimeTypes: ['video/*', 'audio/*'] },
+  upload: { mimeTypes: ['video/*', 'audio/*'], pasteURL: false },
   hooks: {
     beforeValidate: [limitSize],
     afterChange: [revalidateOnChange],

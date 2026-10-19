@@ -32,6 +32,7 @@ import { NavExtras as NavExtras_fd61ce14885ed107a3ad7877f371f5d6 } from '../../.
 import { Welcome as Welcome_72e830871eb26c77002633e2e2cc9dea } from '../../../components/admin/Welcome'
 import { NavTidy as NavTidy_301393646d0ca86be08d412869e8d7a9 } from '../../../components/admin/NavTidy'
 import { PasswordReveal as PasswordReveal_655eb28e21bff48b103452f82d4670db } from '../../../components/admin/PasswordReveal'
+import { S3ClientUploadHandler as S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24 } from '@payloadcms/storage-s3/client'
 import { Dashboard as Dashboard_16b88e9b8c48e393fa86591406efd08f } from '../../../components/admin/Dashboard'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 
@@ -71,6 +72,7 @@ export const importMap = {
   "/components/admin/Welcome#Welcome": Welcome_72e830871eb26c77002633e2e2cc9dea,
   "/components/admin/NavTidy#NavTidy": NavTidy_301393646d0ca86be08d412869e8d7a9,
   "/components/admin/PasswordReveal#PasswordReveal": PasswordReveal_655eb28e21bff48b103452f82d4670db,
+  "@payloadcms/storage-s3/client#S3ClientUploadHandler": S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24,
   "/components/admin/Dashboard#Dashboard": Dashboard_16b88e9b8c48e393fa86591406efd08f,
   "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1
 }

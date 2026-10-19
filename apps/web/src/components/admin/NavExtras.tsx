@@ -47,6 +47,7 @@ export function NavExtras({ user }: { user?: unknown }) {
     ? [
         { href: '/staff/import', label: 'Import from old website', icon: 'import' },
         { href: '/staff/translate', label: 'Translate content', icon: 'translate' },
+        { href: '/staff/storage', label: 'Upload / storage check', icon: 'storage' },
       ]
     : []
 

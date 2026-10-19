@@ -9,6 +9,8 @@ export const Media: CollectionConfig = {
   admin: { group: 'Media library', defaultColumns: ['filename', 'alt', 'credit'] },
   access: { read: anyone, create: staff, update: staff, delete: staff },
   upload: {
+    // No "Paste URL" button: files are chosen from the computer or dropped in.
+    pasteURL: false,
     mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif'],
     focalPoint: true,
     // Pre-cut sizes; next/image picks the closest one and serves AVIF/WebP.

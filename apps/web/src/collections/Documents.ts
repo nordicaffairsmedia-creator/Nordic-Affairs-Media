@@ -10,6 +10,7 @@ export const Documents: CollectionConfig = {
   hooks: { afterChange: [revalidateOnChange], afterDelete: [revalidateOnDelete] },
   access: { read: anyone, create: staff, update: staff, delete: staff },
   upload: {
+    pasteURL: false,
     mimeTypes: [
       'application/pdf',
       'application/msword',
