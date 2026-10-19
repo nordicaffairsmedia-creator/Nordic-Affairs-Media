@@ -12,12 +12,14 @@ export const Media: CollectionConfig = {
     group: 'Media library',
     defaultColumns: ['filename', 'alt', 'credit'],
     pagination: { defaultLimit: 25, limits: [25, 50, 100] },
-    components: { beforeListTable: ['/components/admin/FastUploadBanner#FastUploadBanner'] },
+    components: { beforeListTable: ['/components/admin/FastUploadBanner#MediaListUpload'] },
   },
   access: { read: anyone, create: staff, update: staff, delete: staff },
   upload: {
     // No "Paste URL" button: files are chosen from the computer or dropped in.
     pasteURL: false,
+    // The built-in Bulk Upload is replaced by the fast one above the list (components/admin/FastUploadBanner).
+    bulkUpload: false,
     mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif'],
     focalPoint: true,
     // Pre-cut sizes; next/image picks the closest one and serves AVIF/WebP.

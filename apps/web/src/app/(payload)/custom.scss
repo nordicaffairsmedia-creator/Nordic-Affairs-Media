@@ -109,6 +109,12 @@ h3,
 .btn--style-secondary {
   border-radius: 999px;
 }
+/* A button that is not clickable right now must look it (the white pill used to hide the difference). */
+.btn[disabled],
+.btn--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 /* Inputs: soft grey fields with a blue focus ring. */
 input:not([type='checkbox']):not([type='radio']),

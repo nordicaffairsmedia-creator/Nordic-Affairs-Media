@@ -74,6 +74,29 @@ const withGlobalAudit = (g: GlobalConfig): GlobalConfig => ({
   hooks: { ...g.hooks, afterChange: [...(g.hooks?.afterChange ?? []), auditGlobal] },
 })
 
+/** A Save button that reacts to the first click (see components/admin/InstantSave). */
+const INSTANT_SAVE = '/components/admin/InstantSave#InstantSave'
+const withInstantSave = (c: CollectionConfig): CollectionConfig => ({
+  ...c,
+  admin: {
+    ...c.admin,
+    components: {
+      ...c.admin?.components,
+      edit: { SaveButton: INSTANT_SAVE, ...c.admin?.components?.edit },
+    },
+  },
+})
+const withGlobalInstantSave = (g: GlobalConfig): GlobalConfig => ({
+  ...g,
+  admin: {
+    ...g.admin,
+    components: {
+      ...g.admin?.components,
+      elements: { SaveButton: INSTANT_SAVE, ...g.admin?.components?.elements },
+    },
+  },
+})
+
 /**
  * Images and PDFs go to S3-compatible storage (e.g. Cloudflare R2 in the EU) when
  * S3_BUCKET is set; otherwise they are kept on the server's disk (fine locally,
@@ -131,7 +154,7 @@ export default buildConfig({
     // Free MongoDB Atlas allows ~500 connections. Every Vercel/Render instance opens its own
     // pool, so keep each pool small and close idle connections quickly. Without this the
     // limit is hit and pages that read the database fail with "server-side exception".
-    connectOptions: { maxPoolSize: 3, minPoolSize: 0, maxIdleTimeMS: 15_000, serverSelectionTimeoutMS: 8_000 },
+    connectOptions: { maxPoolSize: process.env.VERCEL ? 5 : 3, minPoolSize: 0, maxIdleTimeMS: 15_000, serverSelectionTimeoutMS: 8_000 },
   }),
   editor: lexicalEditor(),
   sharp,
@@ -212,11 +235,13 @@ export default buildConfig({
   ]
     .map(relaxCollection)
     .map(withAudit)
+    .map(withInstantSave)
     // Sign-in log and visitor counter: written by the system, so not audited themselves.
     .concat([LoginEvents, PageViews]),
   globals: [Homepage, Navigation, AboutPage, ArtistProfile, SiteSettings, PlatformSettings]
     .map(relaxGlobal)
-    .map(withGlobalAudit),
+    .map(withGlobalAudit)
+    .map(withGlobalInstantSave),
   // Large uploads (high-resolution photos, videos up to 200 MB): files are written to a
   // temporary file instead of being held in memory, so the small server does not run out.
   upload: {

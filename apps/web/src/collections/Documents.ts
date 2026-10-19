@@ -6,11 +6,17 @@ import { revalidateOnChange, revalidateOnDelete } from '@/lib/revalidate'
 export const Documents: CollectionConfig = {
   slug: 'documents',
   defaultSort: '-createdAt',
-  admin: { group: 'Media library', useAsTitle: 'title', pagination: { defaultLimit: 25, limits: [25, 50, 100] } },
+  admin: {
+    group: 'Media library',
+    useAsTitle: 'title',
+    pagination: { defaultLimit: 25, limits: [25, 50, 100] },
+    components: { beforeListTable: ['/components/admin/FastUploadBanner#DocumentsListUpload'] },
+  },
   hooks: { afterChange: [revalidateOnChange], afterDelete: [revalidateOnDelete] },
   access: { read: anyone, create: staff, update: staff, delete: staff },
   upload: {
     pasteURL: false,
+    bulkUpload: false,
     mimeTypes: [
       'application/pdf',
       'application/msword',

@@ -53,7 +53,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     entry(''),
     entry(routes.events()),
-    entry(routes.publications()),
     entry('/about-us'),
     entry('/gallery'),
     entry('/media'),

@@ -35,8 +35,33 @@ type Item = {
 }
 type Target = { filename: string; url: string; variants: { key: SizeKey; filename: string; url: string }[] }
 
-const kindOf = (f: File): 'media' | 'videos' | null =>
-  IMAGE_TYPES.includes(f.type) ? 'media' : f.type.startsWith('video/') || f.type.startsWith('audio/') ? 'videos' : null
+export type Kind = 'media' | 'videos' | 'documents'
+const DOC_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'text/plain',
+  'text/csv',
+  'application/zip',
+]
+const kindOf = (f: File): Kind | null =>
+  IMAGE_TYPES.includes(f.type)
+    ? 'media'
+    : f.type.startsWith('video/') || f.type.startsWith('audio/')
+      ? 'videos'
+      : DOC_TYPES.includes(f.type)
+        ? 'documents'
+        : null
+const ACCEPT: Record<Kind, string> = {
+  media: 'image/jpeg,image/png,image/webp,image/avif,image/gif',
+  videos: 'video/*,audio/*',
+  documents: DOC_TYPES.join(','),
+}
+const WORDS: Record<Kind, string> = { media: 'photos', videos: 'videos and audio', documents: 'documents' }
 
 async function putFile(url: string, body: Blob, type: string) {
   const res = await fetch(url, { method: 'PUT', body, headers: { 'Content-Type': type } })
@@ -85,7 +110,19 @@ async function makeVariants(file: File) {
   return { variants: out, ...dims }
 }
 
-export function FastUpload({ disabled }: { disabled: boolean }) {
+export function FastUpload({
+  disabled,
+  allowed = ['media', 'videos', 'documents'],
+  compact = false,
+  listPath,
+}: {
+  disabled: boolean
+  /** Which kinds of file this screen accepts. */
+  allowed?: Kind[]
+  /** In the Media / Videos / Documents lists: start at once and reload that list when done. */
+  compact?: boolean
+  listPath?: string
+}) {
   const [files, setFiles] = useState<File[]>([])
   const [showOnPage, setShowOnPage] = useState(true)
   const [credit, setCredit] = useState('')
@@ -98,14 +135,21 @@ export function FastUpload({ disabled }: { disabled: boolean }) {
 
   const accept = (list: FileList | File[]) => {
     const all = [...list]
-    setFiles(all.filter((f) => kindOf(f)))
+    const ok = all.filter((f) => {
+      const k = kindOf(f)
+      return k !== null && allowed.includes(k)
+    })
+    setFiles(ok)
     setResult(null)
     setError(null)
-    const skipped = all.length - all.filter((f) => kindOf(f)).length
-    if (skipped) setError(`${skipped} file(s) skipped: only photos (JPG, PNG, WebP, AVIF, GIF), videos and audio can be added here.`)
+    const skipped = all.length - ok.length
+    if (skipped) setError(`${skipped} file(s) skipped: this screen accepts ${allowed.map((k) => WORDS[k]).join(', ')} only.`)
+    // In the lists there is nothing else to decide: go.
+    if (compact && ok.length) void start(ok)
   }
 
-  async function start() {
+  async function start(chosen: File[] = files) {
+    const files = chosen
     setBusy(true)
     setError(null)
     setResult(null)
@@ -179,7 +223,7 @@ export function FastUpload({ disabled }: { disabled: boolean }) {
 
       // Record them in the library, in the order they were chosen (photos and videos separately).
       let added = 0
-      for (const kind of ['media', 'videos'] as const) {
+      for (const kind of ['media', 'videos', 'documents'] as const) {
         const idx = files.map((_, i) => i).filter((i) => kindOf(files[i]!) === kind && items[i])
         for (let c = 0; c < idx.length; c += 50) {
           const chunk = idx.slice(c, c + 50)
@@ -205,6 +249,9 @@ export function FastUpload({ disabled }: { disabled: boolean }) {
       setResult({ added, failed })
       setFiles([])
       if (input.current) input.current.value = ''
+      // In a list: show the list again, newest first, so the new files are on page 1 at once.
+      if (compact && listPath && failed.length === 0)
+        window.location.assign(`${listPath}?sort=-createdAt&limit=25&page=1`)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -213,6 +260,75 @@ export function FastUpload({ disabled }: { disabled: boolean }) {
   }
 
   const btn = 'min-h-11 px-5 font-ui text-caption font-semibold disabled:opacity-40'
+
+  if (compact) {
+    return (
+      <div
+        onDragOver={(e) => {
+          e.preventDefault()
+          setOver(true)
+        }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => {
+          e.preventDefault()
+          setOver(false)
+          if (!busy && !disabled) accept(e.dataTransfer.files)
+        }}
+        style={{
+          margin: '0 0 1rem',
+          padding: '0.9rem 1rem',
+          border: `2px dashed ${over ? 'currentColor' : 'rgba(128,128,128,.5)'}`,
+          borderRadius: 10,
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: '0.75rem',
+        }}
+      >
+        <button
+          type="button"
+          disabled={busy || disabled}
+          onClick={() => input.current?.click()}
+          style={{
+            padding: '0.55rem 1.1rem',
+            borderRadius: 999,
+            border: '1px solid currentColor',
+            background: 'transparent',
+            color: 'inherit',
+            fontWeight: 600,
+            cursor: busy ? 'wait' : 'pointer',
+          }}
+        >
+          {busy ? 'Uploading…' : 'Bulk upload'}
+        </button>
+        <span style={{ opacity: 0.8 }}>
+          {busy
+            ? 'Please wait — the list reloads by itself when everything is added.'
+            : `Choose or drop ${allowed.map((k) => WORDS[k]).join(', ')} — as many as you like.`}
+        </span>
+        <input
+          ref={input}
+          type="file"
+          multiple
+          accept={allowed.map((k) => ACCEPT[k]).join(',')}
+          style={{ display: 'none' }}
+          onChange={(e) => e.target.files && accept(e.target.files)}
+        />
+        {busy ? (
+          <div style={{ flexBasis: '100%', height: 6, background: 'rgba(128,128,128,.35)', borderRadius: 3 }}>
+            <div style={{ height: 6, width: `${progress}%`, background: 'currentColor', borderRadius: 3, transition: 'width .2s' }} />
+          </div>
+        ) : null}
+        {error ? <span style={{ flexBasis: '100%', color: '#ff6b6b' }}>{error}</span> : null}
+        {result?.failed.length ? (
+          <span style={{ flexBasis: '100%', color: '#ff6b6b' }}>
+            {result.failed.length} file(s) did not upload: {result.failed.slice(0, 3).join(' · ')}
+          </span>
+        ) : null}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div
@@ -228,7 +344,7 @@ export function FastUpload({ disabled }: { disabled: boolean }) {
         }}
         className={`flex min-h-40 flex-col items-center justify-center gap-3 border-2 border-dashed p-6 text-center ${over ? 'border-ink' : 'border-rule'}`}
       >
-        <p className="font-ui text-caption">Drop photos and videos here, or</p>
+        <p className="font-ui text-caption">Drop files here, or</p>
         <button type="button" disabled={busy || disabled} onClick={() => input.current?.click()} className={`${btn} border border-ink`}>
           Choose files
         </button>
@@ -236,7 +352,7 @@ export function FastUpload({ disabled }: { disabled: boolean }) {
           ref={input}
           type="file"
           multiple
-          accept="image/jpeg,image/png,image/webp,image/avif,image/gif,video/*,audio/*"
+          accept={allowed.map((k) => ACCEPT[k]).join(',')}
           className="hidden"
           onChange={(e) => e.target.files && accept(e.target.files)}
         />

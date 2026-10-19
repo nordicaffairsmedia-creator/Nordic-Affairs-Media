@@ -16,7 +16,7 @@ const size = z.object({
   filesize: z.number().int().nonnegative(),
 })
 const body = z.object({
-  kind: z.enum(['media', 'videos']),
+  kind: z.enum(['media', 'videos', 'documents']),
   showOnPage: z.boolean(),
   credit: z.string().max(200).optional(),
   items: z
@@ -71,7 +71,18 @@ export async function POST(req: Request) {
                 createdAt: at.toISOString(),
                 updatedAt: at.toISOString(),
               }
-            : {
+            : kind === 'documents'
+              ? {
+                  filename: it.filename,
+                  mimeType: it.mimeType,
+                  filesize: it.filesize,
+                  title: it.filename.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' '),
+                  showOnWebsite: showOnPage,
+                  allowDownload: true,
+                  createdAt: at.toISOString(),
+                  updatedAt: at.toISOString(),
+                }
+              : {
                 filename: it.filename,
                 mimeType: it.mimeType,
                 filesize: it.filesize,

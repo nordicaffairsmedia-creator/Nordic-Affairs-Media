@@ -28,10 +28,10 @@ export const Videos: CollectionConfig = {
     useAsTitle: 'title',
     defaultColumns: ['title', 'filename', 'format'],
     pagination: { defaultLimit: 25, limits: [25, 50, 100] },
-    components: { beforeListTable: ['/components/admin/FastUploadBanner#FastUploadBanner'] },
+    components: { beforeListTable: ['/components/admin/FastUploadBanner#VideosListUpload'] },
   },
   access: { read: anyone, create: staff, update: staff, delete: staff },
-  upload: { mimeTypes: ['video/*', 'audio/*'], pasteURL: false },
+  upload: { mimeTypes: ['video/*', 'audio/*'], pasteURL: false, bulkUpload: false },
   hooks: {
     beforeValidate: [limitSize],
     afterChange: [revalidateMediaChange],
