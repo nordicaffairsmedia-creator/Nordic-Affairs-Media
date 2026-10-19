@@ -2,7 +2,9 @@ import { MongoClient, type Db } from 'mongodb'
 import { env } from './env.js'
 
 let db: Db | null = null
-const client = new MongoClient(env.DATABASE_URI)
+let connecting: Promise<Db> | null = null
+// Small pool on Vercel: many short-lived instances each hold a few connections (Atlas limits the total).
+const client = new MongoClient(env.DATABASE_URI, process.env.VERCEL ? { maxPoolSize: 3 } : {})
 
 /**
  * Collections owned by the booking API (all prefixed `booking_`; the CMS never writes them):
@@ -15,9 +17,19 @@ const client = new MongoClient(env.DATABASE_URI)
  * - booking_tickets  one per admission, with the unguessable code in the QR.
  * - booking_codes    one-time email login codes for "My Bookings" (hashed).
  * - booking_sessions My Bookings sign-ins (token stored hashed).
+ * - booking_ratelimits request counters (only used on Vercel; expire by themselves).
  */
-export async function connect(): Promise<Db> {
-  if (db) return db
+export function connect(): Promise<Db> {
+  if (db) return Promise.resolve(db)
+  // Several requests can arrive at once on a fresh instance: they all wait for the same connection.
+  connecting ??= open().catch((e: unknown) => {
+    connecting = null
+    throw e
+  })
+  return connecting
+}
+
+async function open(): Promise<Db> {
   await client.connect()
   const database = client.db()
 
@@ -43,6 +55,9 @@ export async function connect(): Promise<Db> {
       .collection('booking_sessions')
       .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
     database.collection('booking_sessions').createIndex({ tokenHash: 1 }, { unique: true }),
+    database
+      .collection('booking_ratelimits')
+      .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
   ])
   db = database
   return db
@@ -56,4 +71,5 @@ export function getDb(): Db {
 export async function disconnect(): Promise<void> {
   await client.close()
   db = null
+  connecting = null
 }

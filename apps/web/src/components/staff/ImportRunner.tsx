@@ -1,7 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { importBasicsStep, importItemStep, planImport } from '@/app/(staff)/staff/import/actions'
+import {
+  importBasicsStep,
+  importItemStep,
+  planImport,
+  repairFilesStep,
+} from '@/app/(staff)/staff/import/actions'
 import type { PlanItem } from '@/lib/wordpress/importer'
 
 type Status = { state: 'waiting' | 'running' | 'done' | 'error'; text: string; next: number }
@@ -33,6 +38,7 @@ export function ImportRunner({ disabled }: { disabled: boolean }) {
   const [running, setRunning] = useState(false)
   const [log, setLog] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [repairText, setRepairText] = useState('')
   const stop = useRef(false)
 
   useEffect(() => setStatus(loadSaved()), [])
@@ -138,6 +144,49 @@ export function ImportRunner({ disabled }: { disabled: boolean }) {
     }
   }, [plan])
 
+  /** Re-copies photos and videos that exist in the CMS but whose file is missing from storage. */
+  const repair = useCallback(async () => {
+    stop.current = false
+    setRunning(true)
+    setError(null)
+    try {
+      for (const collection of ['media', 'videos'] as const) {
+        let offset = 0
+        let tries = 0
+        let fixed = 0
+        const label = collection === 'media' ? 'photos' : 'videos'
+        while (!stop.current) {
+          const r = await repairFilesStep(collection, offset).catch((e: unknown) => ({
+            ok: false as const,
+            error: `Server did not answer (${e instanceof Error ? e.message : String(e)})`,
+          }))
+          if (!r.ok) {
+            tries++
+            note(`Repair ${label}: ${r.error}${tries < 6 ? ' — retrying shortly' : ''}`)
+            if (tries >= 6) throw new Error(r.error)
+            await sleep(10000 * tries)
+            continue
+          }
+          tries = 0
+          fixed += r.data.added
+          r.data.failed.forEach((f) => note(`Repair ${label}: ${f}`))
+          offset = r.data.next
+          setRepairText(`Repairing ${label}: checked ${offset} of ${r.data.total}, re-copied ${fixed}`)
+          if (r.data.done) {
+            note(`Repair ${label}: checked ${r.data.total}, re-copied ${fixed}`)
+            break
+          }
+        }
+        if (stop.current) break
+      }
+      if (!stop.current) note('Repair finished. Reload the website to see the photos.')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setRunning(false)
+    }
+  }, [])
+
   const reset = () => {
     save({})
     setStatus({})
@@ -170,6 +219,17 @@ export function ImportRunner({ disabled }: { disabled: boolean }) {
             {Object.keys(status).length ? 'Continue import' : 'Start import'}
           </button>
         )}
+        {!running ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => void repair()}
+            className={`${btn} border border-ink`}
+          >
+            Repair missing photos
+          </button>
+        ) : null}
+        {repairText ? <p className="meta">{repairText}</p> : null}
         {!running && Object.keys(status).length ? (
           <button type="button" onClick={reset} className={`${btn} text-charcoal underline`}>
             Forget progress

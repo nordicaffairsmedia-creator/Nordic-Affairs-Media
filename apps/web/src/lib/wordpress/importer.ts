@@ -361,6 +361,61 @@ export async function importBasics(payload: Payload): Promise<StepResult> {
 export const BATCH = 3
 
 /**
+ * Repairs photos/videos whose record exists but whose file is not in the bucket (for example
+ * after switching storage to Cloudflare R2). For each record with an old address it checks the
+ * bucket and, if the file is missing, copies it again from the old website and attaches it to
+ * the same record — so every page that already uses the photo starts showing it. Records are
+ * walked in a fixed order, a few per call; call again with `next` until `done`.
+ */
+export async function repairFiles(
+  payload: Payload,
+  collection: 'media' | 'videos',
+  offset = 0,
+  batch = BATCH,
+): Promise<StepResult> {
+  const { objectExists } = await import('@/lib/storage')
+  const page = await payload.find({
+    collection,
+    where: { sourceUrl: { exists: true } },
+    sort: 'createdAt',
+    limit: batch,
+    page: Math.floor(offset / batch) + 1,
+    depth: 0,
+    overrideAccess: true,
+  })
+  const failed: string[] = []
+  let added = 0
+  for (const doc of page.docs) {
+    const d = doc as unknown as { id: string | number; filename?: string | null; sourceUrl?: string | null }
+    if (!d.sourceUrl) continue
+    try {
+      if (d.filename && (await objectExists(d.filename))) continue
+      const file = await download(d.sourceUrl, collection === 'media' ? 'image' : 'video')
+      await payload.update({
+        collection,
+        id: d.id,
+        data: {} as never,
+        file,
+        overrideAccess: true,
+      })
+      added++
+    } catch (e) {
+      failed.push(`${d.filename ?? d.sourceUrl}: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+  const end = offset + page.docs.length
+  const done = !page.hasNextPage
+  return {
+    done,
+    next: end,
+    total: page.totalDocs,
+    added,
+    failed,
+    message: done ? `Checked ${page.totalDocs} ${collection === 'media' ? 'photos' : 'videos'}` : '',
+  }
+}
+
+/**
  * One step of one item: a gallery moves `BATCH` photos per call (call again with `next`
  * until `done`); a story moves in a single call.
  */

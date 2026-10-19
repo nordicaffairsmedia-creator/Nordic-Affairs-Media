@@ -3,6 +3,7 @@ import {
   DeleteObjectCommand,
   GetBucketCorsCommand,
   HeadBucketCommand,
+  HeadObjectCommand,
   PutBucketCorsCommand,
   PutObjectCommand,
   S3Client,
@@ -43,6 +44,19 @@ function client() {
 }
 
 const bucket = () => process.env.S3_BUCKET ?? ''
+
+/** True when a file with this name is in the bucket. Any error other than "not found" is thrown. */
+export async function objectExists(key: string): Promise<boolean> {
+  try {
+    await client().send(new HeadObjectCommand({ Bucket: bucket(), Key: key }))
+    return true
+  } catch (e) {
+    const x = e as { name?: string; $metadata?: { httpStatusCode?: number } }
+    if (x.name === 'NotFound' || x.name === 'NoSuchKey' || x.$metadata?.httpStatusCode === 404)
+      return false
+    throw e
+  }
+}
 
 const errText = (e: unknown) => {
   const x = e as { name?: string; message?: string; $metadata?: { httpStatusCode?: number } }

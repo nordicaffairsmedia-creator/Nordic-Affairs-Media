@@ -8,6 +8,7 @@ import {
   importBasics,
   importItem,
   loadPlan,
+  repairFiles,
   storageReady,
   type PlanItem,
   type StepResult,
@@ -48,6 +49,22 @@ export async function importBasicsStep(): Promise<Outcome<StepResult>> {
       summary: 'Imported contact details, About page, press logos and redirects from the old site',
     })
     return { ok: true, data }
+  } catch (e) {
+    return fail(e)
+  }
+}
+
+/** Re-copies photos / videos whose file is missing from the bucket (see repairFiles). */
+export async function repairFilesStep(
+  collection: 'media' | 'videos',
+  offset: number,
+): Promise<Outcome<StepResult>> {
+  await requireStaff()
+  if ((collection !== 'media' && collection !== 'videos') || !Number.isInteger(offset) || offset < 0)
+    return { ok: false, error: 'Bad request' }
+  try {
+    const payload = await getPayloadClient()
+    return { ok: true, data: await repairFiles(payload, collection, offset) }
   } catch (e) {
     return fail(e)
   }
