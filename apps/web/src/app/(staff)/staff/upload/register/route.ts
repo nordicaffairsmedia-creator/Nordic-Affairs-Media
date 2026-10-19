@@ -27,7 +27,7 @@ const body = z.object({
         filesize: z.number().int().nonnegative().max(200 * 1024 * 1024),
         width: z.number().int().positive().optional(),
         height: z.number().int().positive().optional(),
-        sizes: z.record(z.enum(['thumb', 'card', 'feature', 'og']), size).optional(),
+        sizes: z.partialRecord(z.enum(['thumb', 'card', 'feature', 'og']), size).optional(),
       }),
     )
     .min(1)
@@ -47,7 +47,10 @@ export async function POST(req: Request) {
   if (!user || !hasRole(user, 'admin', 'editor'))
     return NextResponse.json({ error: 'Please sign in again.' }, { status: 401 })
   const parsed = body.safeParse(await req.json().catch(() => null))
-  if (!parsed.success) return NextResponse.json({ error: 'Bad request' }, { status: 400 })
+  if (!parsed.success) return NextResponse.json(
+      { error: `Bad request: ${parsed.error.issues.slice(0, 2).map((i) => i.path.join('.') + ' ' + i.message).join('; ')}` },
+      { status: 400 },
+    )
   const { kind, showOnPage, credit, items, offset, total } = parsed.data
 
   const payload = await getPayloadClient()
