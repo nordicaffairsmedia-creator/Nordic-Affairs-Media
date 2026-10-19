@@ -27,10 +27,6 @@ const schema = z.object({
       .transform((v) => (v ? origins(v)[0] : undefined)),
   ),
   RENDER_EXTERNAL_URL: z.preprocess(blank, z.string().optional()),
-  /** Vercel fills this in itself (the project's production host name, without https://). */
-  VERCEL_PROJECT_PRODUCTION_URL: z.preprocess(blank, z.string().optional()),
-  /** Vercel Cron sends this as "Authorization: Bearer …" to /cron/*. Any random text, 24+ characters. */
-  CRON_SECRET: z.preprocess(blank, z.string().min(24).optional()),
 
   // Payments (phase 3). Without these, checkout answers "payments not configured".
   STRIPE_SECRET_KEY: z.preprocess(blank, z.string().startsWith('sk_').optional()),
@@ -83,7 +79,6 @@ export const env = {
   WEB_URL: parsed.ALLOWED_ORIGINS[0] ?? 'http://localhost:3000',
   API_URL: (
     parsed.PUBLIC_API_URL ??
-    (parsed.VERCEL_PROJECT_PRODUCTION_URL ? origins(parsed.VERCEL_PROJECT_PRODUCTION_URL)[0] : undefined) ??
     parsed.RENDER_EXTERNAL_URL ??
     `http://localhost:${parsed.PORT}`
   ).replace(/\/$/, ''),
