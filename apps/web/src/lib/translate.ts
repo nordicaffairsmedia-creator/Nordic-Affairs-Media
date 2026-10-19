@@ -13,8 +13,32 @@ const NAMES: Record<Target, string> = { sv: 'Swedish', ta: 'Tamil', ml: 'Malayal
 
 export class TranslateError extends Error {}
 
+/**
+ * Which service translates: Google Gemini when GEMINI_API_KEY is set (it has a free plan),
+ * otherwise OpenAI with OPENAI_API_KEY. Both speak the same chat format.
+ */
+function provider() {
+  const gemini = process.env.GEMINI_API_KEY?.trim()
+  if (gemini)
+    return {
+      name: 'Gemini',
+      key: gemini,
+      url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+      model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+    }
+  const openai = process.env.OPENAI_API_KEY?.trim()
+  if (openai)
+    return {
+      name: 'OpenAI',
+      key: openai,
+      url: 'https://api.openai.com/v1/chat/completions',
+      model: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
+    }
+  return null
+}
+
 export function translationReady() {
-  return Boolean(process.env.OPENAI_API_KEY)
+  return provider() !== null
 }
 
 /** Long stories go in small batches, so one request never hits the provider's per-minute size limit. */
@@ -39,19 +63,21 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 async function translateBatch(texts: string[], target: Target): Promise<string[]> {
   if (texts.length === 0) return []
-  const key = process.env.OPENAI_API_KEY
-  if (!key) throw new TranslateError('OPENAI_API_KEY is not set on the website service.')
+  const prov = provider()
+  if (!prov) throw new TranslateError('OPENAI_API_KEY (or GEMINI_API_KEY) is not set on the website service.')
   // "Too many requests" (429) is usually just a short rush: wait and try again, up to 4 times.
   // A 429 that says the account has no credit is different: waiting never fixes it.
   let res: Response | undefined
   for (let attempt = 0; attempt < 4; attempt++) {
-    res = await send(key, texts, target)
+    res = await send(prov, texts, target)
     if (res.status !== 429 && res.status < 500) break
     if (res.status === 429) {
       const detail = await res.clone().text().catch(() => '')
       if (/insufficient_quota|billing|exceeded your current quota/i.test(detail))
         throw new TranslateError(
-          'The OpenAI account has no credit left (quota used up). Add credit under Billing at platform.openai.com, then run Translate again.',
+          prov.name === 'OpenAI'
+            ? 'The OpenAI account has no credit left (quota used up). Add credit under Billing at platform.openai.com, then run Translate again.'
+            : 'The Gemini free daily limit is used up. Wait until tomorrow and run Translate again; finished items are kept.',
         )
     }
     const retryAfter = Number(res.headers.get('retry-after'))
@@ -60,19 +86,19 @@ async function translateBatch(texts: string[], target: Target): Promise<string[]
   if (!res) throw new TranslateError('Translation service did not answer')
   if (res.status === 429)
     throw new TranslateError('The translation service is busy right now (HTTP 429). Wait a minute and run Translate again; finished items are kept.')
-  if (res.status === 401)
-    throw new TranslateError('The OpenAI key is not accepted (HTTP 401). Check OPENAI_API_KEY in the website settings.')
+  if (res.status === 401 || res.status === 403)
+    throw new TranslateError(`The ${prov.name} key is not accepted (HTTP ${res.status}). Check the key in the website settings.`)
   if (!res.ok) throw new TranslateError(`Translation service answered HTTP ${res.status}`)
   return parseReply(res, texts)
 }
 
-function send(key: string, texts: string[], target: Target) {
-  return fetch('https://api.openai.com/v1/chat/completions', {
+function send(prov: NonNullable<ReturnType<typeof provider>>, texts: string[], target: Target) {
+  return fetch(prov.url, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${prov.key}`, 'Content-Type': 'application/json' },
     signal: AbortSignal.timeout(90_000),
     body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
+      model: prov.model,
       temperature: 0.2,
       response_format: { type: 'json_object' },
       messages: [
