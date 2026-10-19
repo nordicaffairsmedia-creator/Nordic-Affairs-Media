@@ -262,3 +262,59 @@ export async function removeTestObject(key: string) {
     .send(new DeleteObjectCommand({ Bucket: bucket(), Key: key }))
     .catch(() => undefined)
 }
+
+/** File names that are safe in a web address and in the bucket. */
+export function safeFilename(name: string) {
+  const clean = name
+    .normalize('NFKD')
+    .replace(/[^\w.-]+/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^[-.]+/, '')
+  return (clean || `file-${Date.now()}`).slice(-120)
+}
+
+/**
+ * Gives every file in a batch a name that is not yet in the bucket (adds -1, -2 ... when it is),
+ * and a short-lived address the browser can upload it to directly.
+ */
+export async function prepareUploadTargets(
+  files: { name: string; type: string; variants: { key: string; ext: string; type: string }[] }[],
+) {
+  const taken = new Set<string>()
+  const free = async (filename: string) => {
+    const dot = filename.lastIndexOf('.')
+    const base = dot > 0 ? filename.slice(0, dot) : filename
+    const ext = dot > 0 ? filename.slice(dot) : ''
+    for (let n = 0; n < 50; n++) {
+      const candidate = n === 0 ? filename : `${base}-${n}${ext}`
+      if (taken.has(candidate)) continue
+      if (await objectExists(candidate)) continue
+      taken.add(candidate)
+      return candidate
+    }
+    throw new Error(`Could not find a free name for ${filename}`)
+  }
+  const put = (key: string, type: string) =>
+    getSignedUrl(client(), new PutObjectCommand({ Bucket: bucket(), Key: key, ContentType: type }), {
+      expiresIn: 3600,
+    })
+  // Names are claimed one after another (so two files with the same name in one batch differ);
+  // the web addresses are then made all at once.
+  const names: string[] = []
+  for (const f of files) names.push(await free(safeFilename(f.name)))
+  return Promise.all(
+    files.map(async (f, i) => {
+      const filename = names[i]!
+      const dot = filename.lastIndexOf('.')
+      const base = dot > 0 ? filename.slice(0, dot) : filename
+      const variants = await Promise.all(
+        f.variants.map(async (v) => {
+          const vName = `${base}-${v.key}.${v.ext}`
+          taken.add(vName)
+          return { key: v.key, filename: vName, url: await put(vName, v.type) }
+        }),
+      )
+      return { filename, url: await put(filename, f.type), variants }
+    }),
+  )
+}

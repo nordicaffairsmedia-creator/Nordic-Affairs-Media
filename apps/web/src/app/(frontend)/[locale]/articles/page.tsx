@@ -2,14 +2,14 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { isLocale } from '@/i18n/config'
 import { getDictionary } from '@/i18n/getDictionary'
-import { listArticles, pageParam } from '@/lib/listings'
+import { listArticlesCached, pageParam } from '@/lib/listings'
 import { buildMetadata } from '@/lib/seo'
 import { href } from '@/lib/site'
 import { StoryCard } from '@/components/editorial/StoryCard'
 import { EmptyState, PageHeader } from '@/components/ui/primitives'
 import { Pagination } from '@/components/ui/Pagination'
 
-// Rendered on request so a new article shows up as soon as it is published.
+// The list itself is cached for two minutes and refreshed the moment an article is published.
 export const dynamic = 'force-dynamic'
 
 type Props = {
@@ -30,7 +30,7 @@ export default async function ArticlesPage({ params, searchParams }: Props) {
   if (!isLocale(locale)) notFound()
   const t = getDictionary(locale)
   const page = pageParam((await searchParams).page)
-  const result = await listArticles(locale, {}, page)
+  const result = await listArticlesCached(locale, page)
   if (page > 1 && result.docs.length === 0) notFound()
 
   return (

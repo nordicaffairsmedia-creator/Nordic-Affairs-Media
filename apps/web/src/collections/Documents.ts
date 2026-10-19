@@ -5,8 +5,8 @@ import { revalidateOnChange, revalidateOnDelete } from '@/lib/revalidate'
 /** Documents (PDF, Word, Excel ...): magazine issues, press kits, policies. */
 export const Documents: CollectionConfig = {
   slug: 'documents',
-  orderable: true,
-  admin: { group: 'Media library', useAsTitle: 'title' },
+  defaultSort: '-createdAt',
+  admin: { group: 'Media library', useAsTitle: 'title', pagination: { defaultLimit: 25, limits: [25, 50, 100] } },
   hooks: { afterChange: [revalidateOnChange], afterDelete: [revalidateOnDelete] },
   access: { read: anyone, create: staff, update: staff, delete: staff },
   upload: {

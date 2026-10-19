@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 
 /**
@@ -14,7 +14,7 @@ import { usePathname } from 'next/navigation'
  *    to instantly unmute and continue playback seamlessly with zero delay.
  * 4. Listens across route transitions and tab visibility changes.
  */
-export function BackgroundMusic() {
+function BackgroundMusicPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const isUnlockedRef = useRef<boolean>(false)
   const pathname = usePathname()
@@ -152,4 +152,26 @@ export function BackgroundMusic() {
       aria-hidden="true"
     />
   )
+}
+
+/**
+ * The 4 MB music file used to start downloading together with every page, competing with the
+ * photos and text the visitor came for. It now waits until the page has finished loading
+ * (plus a moment), then behaves exactly as before.
+ */
+export function BackgroundMusic() {
+  const [ready, setReady] = useState(false)
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const start = () => {
+      timer = setTimeout(() => setReady(true), 1500)
+    }
+    if (document.readyState === 'complete') start()
+    else window.addEventListener('load', start, { once: true })
+    return () => {
+      window.removeEventListener('load', start)
+      if (timer) clearTimeout(timer)
+    }
+  }, [])
+  return ready ? <BackgroundMusicPlayer /> : null
 }

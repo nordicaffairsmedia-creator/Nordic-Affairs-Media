@@ -1,7 +1,7 @@
 import { ApiWarmup } from '@/components/account/ApiWarmup'
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { isLocale, type Locale } from '@/i18n/config'
 import { getDictionary } from '@/i18n/getDictionary'
 import { bookingApiUrl } from '@/lib/booking'
@@ -19,11 +19,9 @@ import { eventPlace } from '@/lib/eventLocation'
 import { href } from '@/lib/site'
 import { EmptyState, PageHeader } from '@/components/ui/primitives'
 import { Pagination } from '@/components/ui/Pagination'
-import { MyBookings } from '@/components/account/MyBookings'
 import { AccountSections, type HubView } from '@/components/account/AccountSections'
 import { HubEventCard } from '@/components/account/HubEventCard'
 import { HubMap, type MapPoint } from '@/components/account/HubMap'
-import { MyTickets } from '@/components/account/MyTickets'
 import { CartView } from '@/components/account/CartView'
 import { buildMetadata } from '@/lib/seo'
 import { routes } from '@/lib/site'
@@ -54,38 +52,8 @@ export default async function EventsPage({
   const sp = await searchParams
   const viewParam = textParam(sp.view) as HubView
   const view: HubView = views.includes(viewParam) ? viewParam : 'discover'
-
-  const myBookings = (
-    <MyBookings
-      locale={locale}
-      intlLocale={intlLocales[locale]}
-      labels={{
-        myBookingsIntro: t.myBookingsIntro,
-        emailLabel: t.emailLabel,
-        sendCode: t.sendCode,
-        codeSent: t.codeSent,
-        enterCode: t.enterCode,
-        verify: t.verify,
-        invalidCode: t.invalidCode,
-        signOut: t.signOut,
-        noBookings: t.noBookings,
-        downloadTickets: t.downloadTickets,
-        downloadReceipt: t.downloadReceipt,
-        resendTickets: t.resendTickets,
-        sent: t.sent,
-        requestCancellation: t.requestCancellation,
-        cancellationRequested: t.cancellationRequested,
-        statusPaid: t.statusPaid,
-        statusRefunded: t.statusRefunded,
-        statusPartiallyRefunded: t.statusPartiallyRefunded,
-        orderRef: t.orderRef,
-        ticketsCount: t.ticketsCount,
-        total: t.total,
-        processing: t.processing,
-        errGeneric: t.errGeneric,
-      }}
-    />
-  )
+  // Old "My tickets" tab: tickets now live on their own page, My bookings.
+  if (view === 'tickets') redirect(`/${locale}/account`)
 
   return (
     <div className="container-wide pb-20">
@@ -103,34 +71,6 @@ export default async function EventsPage({
             checkoutBase={href(locale, '/events')}
             browseHref={href(locale, '/events')}
           />
-        ) : null}
-        {view === 'tickets' ? (
-          <div className="grid gap-16">
-            <MyTickets
-              intlLocale={intlLocales[locale]}
-              labels={{
-                title: t.hubMyTicketsTitle,
-                intro: t.hubMyTicketsIntro,
-                loading: t.hubMyTicketsLoading,
-                empty: t.hubMyTicketsEmpty,
-                error: t.hubMyTicketsError,
-                retry: t.hubMyTicketsRetry,
-                orderRef: t.orderRef,
-                total: t.total,
-                pdf: t.downloadTickets,
-                imageAlt: t.hubTicketImage,
-                ticketWord: t.hubMyTicketsWord,
-                pngLabel: t.hubTicketDownloadPng,
-                openLabel: t.hubTicketOpen,
-                remove: t.hubMyTicketsRemove,
-                demo: t.hubMyTicketsDemo,
-              }}
-            />
-            <section aria-label={t.hubMyTicketsOther}>
-              <h2 className="text-h3">{t.hubMyTicketsOther}</h2>
-              <div className="mt-4">{myBookings}</div>
-            </section>
-          </div>
         ) : null}
       </div>
     </div>

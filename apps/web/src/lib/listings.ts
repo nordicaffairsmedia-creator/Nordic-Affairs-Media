@@ -72,6 +72,17 @@ export async function listArticles(
   })
 }
 
+/**
+ * The plain Articles list (no filter), kept for two minutes and dropped the moment something is
+ * published (the 'content' tag is purged by the save hooks). Opening the Articles tab then
+ * does not wait for the database.
+ */
+export const listArticlesCached = (locale: Locale, page: number) =>
+  unstable_cache(() => listArticles(locale, {}, page), ['articles-list', locale, String(page)], {
+    tags: ['content'],
+    revalidate: 120,
+  })()
+
 export type EventFilter = {
   city?: string
   categorySlug?: string

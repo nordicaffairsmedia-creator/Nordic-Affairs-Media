@@ -122,10 +122,9 @@ const plugins: Plugin[] = process.env.S3_BUCKET
 export default buildConfig({
   csrf: allowedOrigins(),
   cors: allowedOrigins(),
-  serverURL:
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : undefined) ||
-    process.env.RENDER_EXTERNAL_URL,
+  // No serverURL on purpose: the admin then calls the API on whatever address it is opened on
+  // (both Vercel addresses work). With it set, the admin on the second address sent every
+  // request to the first one, the sign-in cookie was not sent, and Save ended in "Failed to fetch".
   secret: requireEnv('PAYLOAD_SECRET'),
   db: mongooseAdapter({
     url: requireEnv('DATABASE_URI'),

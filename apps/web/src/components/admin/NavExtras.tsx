@@ -43,6 +43,8 @@ export function NavExtras({ user }: { user?: unknown }) {
         { href: '/staff/scan', label: 'Gate scanner', icon: 'scan' },
       ]
     : []
+  const editor = hasRole(u, 'editor', 'admin')
+  const upload: Item[] = editor ? [{ href: '/staff/upload', label: 'Fast upload (photos & videos)', icon: 'upload' }] : []
   const tools: Item[] = owner
     ? [
         { href: '/staff/import', label: 'Import from old website', icon: 'import' },
@@ -56,6 +58,11 @@ export function NavExtras({ user }: { user?: unknown }) {
       {ticketing.length ? (
         <NavGroup label="Ticketing tools">
           <Links items={ticketing} />
+        </NavGroup>
+      ) : null}
+      {upload.length ? (
+        <NavGroup label="Fast upload">
+          <Links items={upload} />
         </NavGroup>
       ) : null}
       {tools.length ? (

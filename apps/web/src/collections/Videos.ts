@@ -1,6 +1,6 @@
 import type { CollectionBeforeValidateHook, CollectionConfig } from 'payload'
 import { anyone, staff } from '@/access/roles'
-import { revalidateOnChange, revalidateOnDelete } from '@/lib/revalidate'
+import { revalidateMediaChange, revalidateMediaDelete } from '@/lib/revalidate'
 
 export const MAX_VIDEO_BYTES = 200 * 1024 * 1024
 
@@ -22,14 +22,20 @@ const limitSize: CollectionBeforeValidateHook = ({ data, req }) => {
 export const Videos: CollectionConfig = {
   slug: 'videos',
   labels: { singular: 'Video / audio', plural: 'Videos & audio' },
-  orderable: true,
-  admin: { group: 'Media library', useAsTitle: 'title', defaultColumns: ['title', 'filename', 'format'] },
+  defaultSort: '-createdAt',
+  admin: {
+    group: 'Media library',
+    useAsTitle: 'title',
+    defaultColumns: ['title', 'filename', 'format'],
+    pagination: { defaultLimit: 25, limits: [25, 50, 100] },
+    components: { beforeListTable: ['/components/admin/FastUploadBanner#FastUploadBanner'] },
+  },
   access: { read: anyone, create: staff, update: staff, delete: staff },
   upload: { mimeTypes: ['video/*', 'audio/*'], pasteURL: false },
   hooks: {
     beforeValidate: [limitSize],
-    afterChange: [revalidateOnChange],
-    afterDelete: [revalidateOnDelete],
+    afterChange: [revalidateMediaChange],
+    afterDelete: [revalidateMediaDelete],
   },
   fields: [
     {

@@ -45,6 +45,11 @@ const nextConfig = {
   async headers() {
     return [
       { source: '/:path*', headers: securityHeaders },
+      // The background music never changes either: keep it for a week instead of asking again every visit.
+      {
+        source: '/music.mp3',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=604800, s-maxage=604800' }],
+      },
       // Photos are public and their file names never change, so browsers and Vercel's
       // CDN may keep them for a year. Without this every photo went through the server
       // on every visit (about 1 s each) and big galleries loaded slowly.

@@ -20,7 +20,7 @@ export function AccountSections({
   const items: { view: HubView; label: string; to: string }[] = [
     { view: 'discover', label: t.hubDiscover, to: base },
     { view: 'cart', label: t.hubCart, to: `${base}?view=cart` },
-    { view: 'tickets', label: t.hubMyTickets, to: `${base}?view=tickets` },
+    { view: 'tickets', label: t.hubMyTickets, to: href(locale, '/account') },
   ]
   return (
     <nav aria-label={t.myBookings} className="flex gap-6 overflow-x-auto border-b border-rule">

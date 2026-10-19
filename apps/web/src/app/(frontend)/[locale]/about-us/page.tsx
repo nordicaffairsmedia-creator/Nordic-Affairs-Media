@@ -476,6 +476,12 @@ export default async function AboutPage({ params }: Props) {
 
   return (
     <article className={`${inter.className} bg-[#0e2440] text-white selection:bg-[#539ae6]/30`}>
+      {/* Only this page uses the Bricolage font, so only this page loads it. */}
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&display=swap"
+        precedence="default"
+      />
       {/* 1. Page banner: ABOUT US + breadcrumb, with user's about us background.jpg */}
       <header className="relative overflow-hidden border-b border-white/10 bg-[#0e2440]">
         {/* User-supplied background image with elegant cinematic gradient overlay */}

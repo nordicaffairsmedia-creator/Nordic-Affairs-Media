@@ -1,12 +1,19 @@
 import type { CollectionConfig } from 'payload'
 import { anyone, staff } from '@/access/roles'
-import { revalidateOnChange, revalidateOnDelete } from '@/lib/revalidate'
+import { revalidateMediaChange, revalidateMediaDelete } from '@/lib/revalidate'
 
 export const Media: CollectionConfig = {
   slug: 'media',
-  orderable: true,
-  hooks: { afterChange: [revalidateOnChange], afterDelete: [revalidateOnDelete] },
-  admin: { group: 'Media library', defaultColumns: ['filename', 'alt', 'credit'] },
+  // Not "orderable": that sorted the list by hand-made position, so every new upload landed on
+  // the last page. Newest first now: a new upload is on page 1, in the order it was added.
+  defaultSort: '-createdAt',
+  hooks: { afterChange: [revalidateMediaChange], afterDelete: [revalidateMediaDelete] },
+  admin: {
+    group: 'Media library',
+    defaultColumns: ['filename', 'alt', 'credit'],
+    pagination: { defaultLimit: 25, limits: [25, 50, 100] },
+    components: { beforeListTable: ['/components/admin/FastUploadBanner#FastUploadBanner'] },
+  },
   access: { read: anyone, create: staff, update: staff, delete: staff },
   upload: {
     // No "Paste URL" button: files are chosen from the computer or dropped in.

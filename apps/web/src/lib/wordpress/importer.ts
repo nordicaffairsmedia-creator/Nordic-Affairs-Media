@@ -396,6 +396,7 @@ export async function repairFiles(
         id: d.id,
         data: {} as never,
         file,
+        context: { skipRevalidate: true },
         overrideAccess: true,
       })
       added++

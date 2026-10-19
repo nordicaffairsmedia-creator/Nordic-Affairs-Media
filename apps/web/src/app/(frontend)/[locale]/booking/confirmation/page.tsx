@@ -227,7 +227,7 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
             </p>
           </dl>
           <Link
-            href={href(locale, '/events?view=tickets')}
+            href={href(locale, '/account')}
             data-testid="go-my-tickets"
             className="mt-8 inline-block font-ui text-meta font-semibold text-fjord hover:underline"
           >
