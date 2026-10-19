@@ -1,0 +1,63 @@
+import type { CollectionConfig } from 'payload'
+import { anyone, staff } from '@/access/roles'
+import { revalidateMediaChange, revalidateMediaDelete } from '@/lib/revalidate'
+
+export const Media: CollectionConfig = {
+  slug: 'media',
+  // Not "orderable": that sorted the list by hand-made position, so every new upload landed on
+  // the last page. Newest first now: a new upload is on page 1, in the order it was added.
+  defaultSort: '-createdAt',
+  hooks: { afterChange: [revalidateMediaChange], afterDelete: [revalidateMediaDelete] },
+  admin: {
+    group: 'Media library',
+    defaultColumns: ['filename', 'alt', 'credit'],
+    pagination: { defaultLimit: 25, limits: [25, 50, 100] },
+    components: { beforeListTable: ['/components/admin/FastUploadBanner#MediaListUpload'] },
+  },
+  access: { read: anyone, create: staff, update: staff, delete: staff },
+  upload: {
+    // No "Paste URL" button: files are chosen from the computer or dropped in.
+    pasteURL: false,
+    // The built-in Bulk Upload is replaced by the fast one above the list (components/admin/FastUploadBanner).
+    bulkUpload: false,
+    mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif'],
+    focalPoint: true,
+    // Pre-cut sizes; next/image picks the closest one and serves AVIF/WebP.
+    imageSizes: [
+      { name: 'thumb', width: 480 },
+      { name: 'card', width: 960 },
+      { name: 'feature', width: 1600 },
+      { name: 'og', width: 1200, height: 630, position: 'centre' },
+    ],
+    adminThumbnail: 'thumb',
+  },
+  fields: [
+    {
+      name: 'alt',
+      type: 'text',
+      localized: true,
+      admin: {
+        description: 'Optional. Describe the image for people who cannot see it (accessibility, SEO).',
+      },
+    },
+    { name: 'caption', type: 'text', localized: true },
+    { name: 'showOnMediaPage', type: 'checkbox', defaultValue: false, admin: { description: 'Tick to show this picture on the public Media page. Unticked pictures stay in the library only.' } },
+    { name: 'credit', type: 'text', admin: { description: 'Photographer or source.' } },
+    {
+      name: 'sourceUrl',
+      type: 'text',
+      index: true,
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+        description: 'Original address on the old WordPress site (set by the import).',
+      },
+    },
+    {
+      name: 'isPlaceholder',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: { description: 'Development placeholder image — replace before launch.' },
+    },
+  ],
+}
