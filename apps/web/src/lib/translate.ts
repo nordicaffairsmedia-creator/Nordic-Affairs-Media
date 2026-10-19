@@ -17,11 +17,57 @@ export function translationReady() {
   return Boolean(process.env.OPENAI_API_KEY)
 }
 
+/** Long stories go in small batches, so one request never hits the provider's per-minute size limit. */
 export async function translateTexts(texts: string[], target: Target): Promise<string[]> {
+  const out: string[] = []
+  let batch: string[] = []
+  let chars = 0
+  for (const t of texts) {
+    if (batch.length && (batch.length >= 20 || chars + t.length > 4000)) {
+      out.push(...(await translateBatch(batch, target)))
+      batch = []
+      chars = 0
+    }
+    batch.push(t)
+    chars += t.length
+  }
+  if (batch.length) out.push(...(await translateBatch(batch, target)))
+  return out
+}
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+async function translateBatch(texts: string[], target: Target): Promise<string[]> {
   if (texts.length === 0) return []
   const key = process.env.OPENAI_API_KEY
   if (!key) throw new TranslateError('OPENAI_API_KEY is not set on the website service.')
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  // "Too many requests" (429) is usually just a short rush: wait and try again, up to 4 times.
+  // A 429 that says the account has no credit is different: waiting never fixes it.
+  let res: Response | undefined
+  for (let attempt = 0; attempt < 4; attempt++) {
+    res = await send(key, texts, target)
+    if (res.status !== 429 && res.status < 500) break
+    if (res.status === 429) {
+      const detail = await res.clone().text().catch(() => '')
+      if (/insufficient_quota|billing|exceeded your current quota/i.test(detail))
+        throw new TranslateError(
+          'The OpenAI account has no credit left (quota used up). Add credit under Billing at platform.openai.com, then run Translate again.',
+        )
+    }
+    const retryAfter = Number(res.headers.get('retry-after'))
+    await wait(Math.min(20_000, Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 2000 * 2 ** attempt))
+  }
+  if (!res) throw new TranslateError('Translation service did not answer')
+  if (res.status === 429)
+    throw new TranslateError('The translation service is busy right now (HTTP 429). Wait a minute and run Translate again; finished items are kept.')
+  if (res.status === 401)
+    throw new TranslateError('The OpenAI key is not accepted (HTTP 401). Check OPENAI_API_KEY in the website settings.')
+  if (!res.ok) throw new TranslateError(`Translation service answered HTTP ${res.status}`)
+  return parseReply(res, texts)
+}
+
+function send(key: string, texts: string[], target: Target) {
+  return fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
     signal: AbortSignal.timeout(90_000),
@@ -46,7 +92,9 @@ export async function translateTexts(texts: string[], target: Target): Promise<s
   }).catch((e: unknown) => {
     throw new TranslateError(`Translation service unreachable (${String(e)})`)
   })
-  if (!res.ok) throw new TranslateError(`Translation service answered HTTP ${res.status}`)
+}
+
+async function parseReply(res: Response, texts: string[]): Promise<string[]> {
   const json = (await res.json()) as { choices?: { message?: { content?: string } }[] }
   let items: unknown
   try {
