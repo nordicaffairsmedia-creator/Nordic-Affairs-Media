@@ -59,6 +59,28 @@ export async function translateTexts(texts: string[], target: Target): Promise<s
   return out
 }
 
+let geminiModelCache: string | undefined
+
+/**
+ * Google renames and retires model names from time to time, which shows up as "404 not found".
+ * Ask Google which models this key can use and pick the newest plain "flash" one.
+ */
+async function pickGeminiModel(key: string): Promise<string | null> {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=${encodeURIComponent(key)}`, {
+    signal: AbortSignal.timeout(20_000),
+  }).catch(() => null)
+  if (!res?.ok) return null
+  const json = (await res.json().catch(() => ({}))) as {
+    models?: { name?: string; supportedGenerationMethods?: string[] }[]
+  }
+  const names = (json.models ?? [])
+    .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
+    .map((m) => (m.name ?? '').replace(/^models\//, ''))
+    .filter((n) => /^gemini-[\d.]+-flash$/.test(n))
+  names.sort((a, b) => parseFloat(b.split('-')[1]!) - parseFloat(a.split('-')[1]!))
+  return names[0] ?? null
+}
+
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 async function translateBatch(texts: string[], target: Target): Promise<string[]> {
@@ -67,9 +89,19 @@ async function translateBatch(texts: string[], target: Target): Promise<string[]
   if (!prov) throw new TranslateError('OPENAI_API_KEY (or GEMINI_API_KEY) is not set on the website service.')
   // "Too many requests" (429) is usually just a short rush: wait and try again, up to 4 times.
   // A 429 that says the account has no credit is different: waiting never fixes it.
+  if (prov.name === 'Gemini' && !process.env.GEMINI_MODEL && geminiModelCache) prov.model = geminiModelCache
   let res: Response | undefined
+  let triedOtherModel = false
   for (let attempt = 0; attempt < 4; attempt++) {
     res = await send(prov, texts, target)
+    if (res.status === 404 && prov.name === 'Gemini' && !triedOtherModel) {
+      triedOtherModel = true
+      const found = await pickGeminiModel(prov.key)
+      if (found && found !== prov.model) {
+        prov.model = geminiModelCache = found
+        res = await send(prov, texts, target)
+      }
+    }
     if (res.status !== 429 && res.status < 500) break
     if (res.status === 429) {
       const detail = await res.clone().text().catch(() => '')
@@ -88,7 +120,10 @@ async function translateBatch(texts: string[], target: Target): Promise<string[]
     throw new TranslateError('The translation service is busy right now (HTTP 429). Wait a minute and run Translate again; finished items are kept.')
   if (res.status === 401 || res.status === 403)
     throw new TranslateError(`The ${prov.name} key is not accepted (HTTP ${res.status}). Check the key in the website settings.`)
-  if (!res.ok) throw new TranslateError(`Translation service answered HTTP ${res.status}`)
+  if (!res.ok) {
+    const detail = (await res.text().catch(() => '')).replace(/\s+/g, ' ').slice(0, 160)
+    throw new TranslateError(`Translation service answered HTTP ${res.status}${detail ? `: ${detail}` : ''}`)
+  }
   return parseReply(res, texts)
 }
 
