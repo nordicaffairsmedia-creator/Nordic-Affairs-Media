@@ -31,7 +31,7 @@ export default async function TranslatePage() {
         </ul>
         {!ready ? (
           <p role="alert" className="border-l-2 border-alert pl-4 font-ui text-caption text-alert">
-            OPENAI_API_KEY is not set on the website service (Render → nam-web → Environment).
+            No translation key is set. Add GEMINI_API_KEY (free) or OPENAI_API_KEY in the website's environment settings.
           </p>
         ) : null}
       </div>
