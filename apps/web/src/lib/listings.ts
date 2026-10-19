@@ -66,7 +66,7 @@ export async function listArticles(
     depth: 2,
     page,
     limit,
-    sort: '-publishedAt',
+    sort: ['_order', '-publishedAt'],
     where: { and },
     ...PUBLIC,
   })
@@ -115,7 +115,7 @@ export async function listEvents(
     depth: 1,
     page,
     limit: when === 'upcoming' ? PAGE_SIZE : 6,
-    sort: when === 'upcoming' ? 'startsAt' : '-startsAt',
+    sort: when === 'upcoming' ? ['_order', 'startsAt'] : ['_order', '-startsAt'],
     where: { and },
     ...PUBLIC,
   })
@@ -161,7 +161,7 @@ export async function listPublications(
     depth: 1,
     page,
     limit: PAGE_SIZE,
-    sort: ['-year', '-publishedAt'],
+    sort: ['_order', '-year', '-publishedAt'],
     where: { and },
     ...PUBLIC,
   })

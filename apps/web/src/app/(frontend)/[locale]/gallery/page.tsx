@@ -30,7 +30,7 @@ export default async function GalleryIndex({ params }: Props) {
     locale,
     depth: 1,
     limit: 200,
-    sort: '-date',
+    sort: ['_order', '-date'],
     where: { _status: { equals: 'published' } },
     overrideAccess: false,
     draft: false,

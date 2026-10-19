@@ -22,12 +22,13 @@ import { UnderlineFeatureClient as UnderlineFeatureClient_e70f5e05f09f93e00b997e
 import { BoldFeatureClient as BoldFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { ItalicFeatureClient as ItalicFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { SeoCheck as SeoCheck_03f811a88443bed71bbead6de2d6b8b3 } from '../../../components/admin/SeoCheck'
+import { PublishOrder as PublishOrder_ec7edd27119e9ad04a0fef97e9982b38 } from '../../../components/admin/PublishOrder'
 import { InstantSave as InstantSave_1dc33e9d2734a72c7ae1a1f10e498a81 } from '../../../components/admin/InstantSave'
+import { GalleryBulkPhotos as GalleryBulkPhotos_b51c5a72ac979e3e7c191c9a14530ef4 } from '../../../components/admin/GalleryBulkPhotos'
 import { MediaListUpload as MediaListUpload_3288621a541b25278480fe069bc10c89 } from '../../../components/admin/FastUploadBanner'
 import { VideosListUpload as VideosListUpload_3288621a541b25278480fe069bc10c89 } from '../../../components/admin/FastUploadBanner'
 import { DocumentsListUpload as DocumentsListUpload_3288621a541b25278480fe069bc10c89 } from '../../../components/admin/FastUploadBanner'
 import { EventMapPicker as EventMapPicker_3da6aa2b0f9f1bf99e6b0ff1a6947281 } from '../../../components/admin/EventMapPicker'
-import { GalleryBulkPhotos as GalleryBulkPhotos_7c1e5b2a9d4f4e0b8a6c3d2e1f0a9b8c } from '../../../components/admin/GalleryBulkPhotos'
 import { AccountActions as AccountActions_b564369a058367a481e030d85bf60b21 } from '../../../components/admin/AccountActions'
 import { Icon as Icon_81fda60f3e3709e861f40982a767707d } from '../../../components/admin/Brand'
 import { Logo as Logo_81fda60f3e3709e861f40982a767707d } from '../../../components/admin/Brand'
@@ -67,12 +68,13 @@ export const importMap = {
   "@payloadcms/richtext-lexical/client#BoldFeatureClient": BoldFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#ItalicFeatureClient": ItalicFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "/components/admin/SeoCheck#SeoCheck": SeoCheck_03f811a88443bed71bbead6de2d6b8b3,
+  "/components/admin/PublishOrder#PublishOrder": PublishOrder_ec7edd27119e9ad04a0fef97e9982b38,
   "/components/admin/InstantSave#InstantSave": InstantSave_1dc33e9d2734a72c7ae1a1f10e498a81,
+  "/components/admin/GalleryBulkPhotos#GalleryBulkPhotos": GalleryBulkPhotos_b51c5a72ac979e3e7c191c9a14530ef4,
   "/components/admin/FastUploadBanner#MediaListUpload": MediaListUpload_3288621a541b25278480fe069bc10c89,
   "/components/admin/FastUploadBanner#VideosListUpload": VideosListUpload_3288621a541b25278480fe069bc10c89,
   "/components/admin/FastUploadBanner#DocumentsListUpload": DocumentsListUpload_3288621a541b25278480fe069bc10c89,
   "/components/admin/EventMapPicker#EventMapPicker": EventMapPicker_3da6aa2b0f9f1bf99e6b0ff1a6947281,
-  "/components/admin/GalleryBulkPhotos#GalleryBulkPhotos": GalleryBulkPhotos_7c1e5b2a9d4f4e0b8a6c3d2e1f0a9b8c,
   "/components/admin/AccountActions#AccountActions": AccountActions_b564369a058367a481e030d85bf60b21,
   "/components/admin/Brand#Icon": Icon_81fda60f3e3709e861f40982a767707d,
   "/components/admin/Brand#Logo": Logo_81fda60f3e3709e861f40982a767707d,

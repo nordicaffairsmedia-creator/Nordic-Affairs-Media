@@ -12,7 +12,7 @@ import { locales } from '@/i18n/config'
  * The site is small enough that purging the whole layout is simpler and safer than
  * tracking every page a document appears on.
  */
-function purge(): void {
+export function purge(): void {
   try {
     revalidatePath('/', 'layout')
     // Cached database reads (event lists, event pages, header/footer) are dropped at the same moment.

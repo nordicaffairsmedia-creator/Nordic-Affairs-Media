@@ -41,7 +41,7 @@ export const getLatestArticles = cache(
       locale,
       depth: 2,
       limit,
-      sort: '-publishedAt',
+      sort: ['_order', '-publishedAt'],
       where,
       ...PUBLIC,
     })
@@ -62,7 +62,7 @@ export const getArticlesByCategory = cache(
       locale,
       depth: 2,
       limit,
-      sort: '-publishedAt',
+      sort: ['_order', '-publishedAt'],
       where: {
         and: [published, { category: { equals: categoryId } }, { id: { not_in: excludeIds } }],
       },
@@ -94,7 +94,7 @@ export const getUpcomingEvents = cache(async (locale: Locale, limit = 4): Promis
     locale,
     depth: 1,
     limit,
-    sort: 'startsAt',
+    sort: ['_order', 'startsAt'],
     where: {
       and: [
         published,
@@ -127,7 +127,7 @@ export const getLatestPublication = cache(async (locale: Locale): Promise<Public
     locale,
     depth: 1,
     limit: 1,
-    sort: ['-year', '-publishedAt'],
+    sort: ['_order', '-year', '-publishedAt'],
     where: published,
     ...PUBLIC,
   })
@@ -269,7 +269,7 @@ export const getLatestGalleries = cache(async (locale: Locale, limit = 12) => {
     locale,
     depth: 1,
     limit,
-    sort: '-date',
+    sort: ['_order', '-date'],
     where: published,
     select: { title: true, slug: true, date: true, cover: true, photoCount: true },
     ...PUBLIC,
@@ -285,7 +285,7 @@ export const getGalleryMenu = cache(async (locale: Locale) => {
     locale,
     depth: 0,
     limit: 200,
-    sort: '-date',
+    sort: ['_order', '-date'],
     where: published,
     select: { title: true, slug: true },
     ...PUBLIC,

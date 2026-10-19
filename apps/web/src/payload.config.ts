@@ -86,6 +86,21 @@ const withInstantSave = (c: CollectionConfig): CollectionConfig => ({
     },
   },
 })
+/** A Publish button above every list that can be rearranged by dragging (see components/admin/PublishOrder). */
+const PUBLISH_ORDER = '/components/admin/PublishOrder#PublishOrder'
+const withPublishOrder = (c: CollectionConfig): CollectionConfig =>
+  c.orderable
+    ? {
+        ...c,
+        admin: {
+          ...c.admin,
+          components: {
+            ...c.admin?.components,
+            beforeListTable: [PUBLISH_ORDER, ...(c.admin?.components?.beforeListTable ?? [])],
+          },
+        },
+      }
+    : c
 const withGlobalInstantSave = (g: GlobalConfig): GlobalConfig => ({
   ...g,
   admin: {
@@ -236,6 +251,7 @@ export default buildConfig({
     .map(relaxCollection)
     .map(withAudit)
     .map(withInstantSave)
+    .map(withPublishOrder)
     // Sign-in log and visitor counter: written by the system, so not audited themselves.
     .concat([LoginEvents, PageViews]),
   globals: [Homepage, Navigation, AboutPage, ArtistProfile, SiteSettings, PlatformSettings]

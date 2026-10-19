@@ -135,7 +135,7 @@ async function queryHubEvents(locale: Locale, filter: HubFilter, page: number) {
     depth: 1,
     page,
     limit: HUB_PAGE_SIZE,
-    sort: filter.range === 'past' ? '-startsAt' : 'startsAt',
+    sort: filter.range === 'past' ? ['_order', '-startsAt'] : ['_order', 'startsAt'],
     where: buildWhere(filter, new Date()),
     overrideAccess: false,
   })
@@ -153,7 +153,7 @@ async function queryHubHighlights(locale: Locale) {
     locale,
     depth: 1,
     limit: 3,
-    sort: 'startsAt',
+    sort: ['_order', 'startsAt'],
     where: {
       and: [published, { salesStatus: { equals: 'onSale' } }, { startsAt: { greater_than_equal: now } }],
     },
@@ -174,7 +174,7 @@ async function queryHubMapEvents(locale: Locale, filter: HubFilter) {
     depth: 1,
     limit: 100,
     pagination: false,
-    sort: 'startsAt',
+    sort: ['_order', 'startsAt'],
     where: buildWhere(filter, new Date()),
     overrideAccess: false,
   })
