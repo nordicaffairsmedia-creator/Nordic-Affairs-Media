@@ -33,6 +33,9 @@ export const Videos: CollectionConfig = {
       'application/vnd.apple.mpegurl',
     ],
     pasteURL: false,
+    // Staff-only. Without this, Payload downloads every finished upload back to the server to inspect it (the file-type list forces it),
+    // which fails with "Something went wrong" on big videos. The file types are still limited by the picker (mimeTypes below).
+    allowRestrictedFileTypes: true,
     bulkUpload: false,
   },
   hooks: {

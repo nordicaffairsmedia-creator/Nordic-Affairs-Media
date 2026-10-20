@@ -7,6 +7,7 @@ import {
   GetBucketCorsCommand,
   HeadBucketCommand,
   HeadObjectCommand,
+  ListMultipartUploadsCommand,
   PutBucketCorsCommand,
   PutObjectCommand,
   S3Client,
@@ -393,4 +394,39 @@ export async function abortMultipart(key: string, uploadId: string) {
   await client()
     .send(new AbortMultipartUploadCommand({ Bucket: bucket(), Key: key, UploadId: uploadId }))
     .catch(() => undefined)
+}
+
+
+export type Unfinished = { key: string; uploadId: string; started: string }
+
+/** Uploads that were started but never finished (closed tab, failed save, deleted afterwards). */
+export async function listUnfinished(): Promise<Unfinished[]> {
+  const s3 = client()
+  const out: Unfinished[] = []
+  let keyMarker: string | undefined
+  let idMarker: string | undefined
+  for (let guard = 0; guard < 50; guard++) {
+    const r = await s3.send(
+      new ListMultipartUploadsCommand({ Bucket: bucket(), KeyMarker: keyMarker, UploadIdMarker: idMarker }),
+    )
+    for (const u of r.Uploads ?? [])
+      if (u.Key && u.UploadId) out.push({ key: u.Key, uploadId: u.UploadId, started: u.Initiated?.toISOString() ?? '' })
+    if (!r.IsTruncated) break
+    keyMarker = r.NextKeyMarker
+    idMarker = r.NextUploadIdMarker
+  }
+  return out
+}
+
+/** Cancels unfinished uploads older than `olderThanMinutes`, so one that is running right now is never cut. */
+export async function abortUnfinished(olderThanMinutes: number) {
+  const cutoff = Date.now() - olderThanMinutes * 60_000
+  const all = await listUnfinished()
+  let done = 0
+  for (const u of all) {
+    if (u.started && new Date(u.started).getTime() > cutoff) continue
+    await abortMultipart(u.key, u.uploadId)
+    done++
+  }
+  return { aborted: done, kept: all.length - done }
 }

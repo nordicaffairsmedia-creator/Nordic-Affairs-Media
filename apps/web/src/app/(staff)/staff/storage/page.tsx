@@ -1,6 +1,7 @@
 import { requireStaff } from '@/lib/staff'
 import { StaffShell } from '@/components/staff/StaffShell'
 import { StorageCheck } from '@/components/staff/StorageCheck'
+import { CleanupUploads } from '@/components/staff/CleanupUploads'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Storage check' }
@@ -19,6 +20,7 @@ export default async function StoragePage() {
       </div>
       <div className="mt-8 max-w-3xl">
         <StorageCheck />
+        <CleanupUploads />
       </div>
     </StaffShell>
   )

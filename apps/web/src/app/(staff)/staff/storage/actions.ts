@@ -2,7 +2,7 @@
 
 import { headers } from 'next/headers'
 import { requireStaff } from '@/lib/staff'
-import { checkStorage, fixCors, removeTestObject, testUploadUrl } from '@/lib/storage'
+import { abortUnfinished, checkStorage, fixCors, listUnfinished, removeTestObject, testUploadUrl } from '@/lib/storage'
 
 /** The address the person is using right now, e.g. https://frontend-nordic-affairs-media.vercel.app */
 async function currentOrigin() {
@@ -33,4 +33,15 @@ export async function browserTestTarget() {
 export async function cleanupTest(key: string) {
   await requireStaff()
   await removeTestObject(key)
+}
+
+export async function listUnfinishedUploads() {
+  await requireStaff()
+  return listUnfinished()
+}
+
+/** Cancels half-finished uploads that started more than 30 minutes ago and frees the space they hold. */
+export async function cleanUnfinishedUploads() {
+  await requireStaff()
+  return abortUnfinished(30)
 }
