@@ -1,4 +1,5 @@
 import path from 'path'
+import { reorderEndpoint } from '@/lib/reorder'
 import { fileURLToPath } from 'url'
 import { buildConfig, type CollectionConfig, type GlobalConfig, type Plugin } from 'payload'
 import { mongooseAdapter } from '@payloadcms/db-mongodb'
@@ -258,6 +259,8 @@ export default buildConfig({
     .map(relaxGlobal)
     .map(withGlobalAudit)
     .map(withGlobalInstantSave),
+  // Drag-and-drop ordering that never fails with "Failed to reorder" (replaces Payload's own step; see lib/reorder.ts).
+  endpoints: [reorderEndpoint],
   // Large uploads (high-resolution photos, videos up to 5 GB): files are written to a
   // temporary file instead of being held in memory, so the small server does not run out.
   upload: {
