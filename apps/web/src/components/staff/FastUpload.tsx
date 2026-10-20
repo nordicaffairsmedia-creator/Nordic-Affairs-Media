@@ -14,11 +14,10 @@ import { useRef, useState } from 'react'
  */
 
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif']
-const MAX_VIDEO = 500 * 1024 * 1024 * 1024 // practical ceiling; big files go up in 64 MB pieces
 const CONCURRENCY = 8
 /** Files above this size are sent in pieces (one upload can be 5 GB at most). */
 const BIG = 100 * 1024 * 1024
-const PART_CONCURRENCY = 4
+const PART_CONCURRENCY = 12
 const SIZES = [
   { key: 'thumb', width: 480 },
   { key: 'card', width: 960 },
@@ -82,7 +81,7 @@ async function post<T>(body: unknown): Promise<T> {
   return j
 }
 
-/** Sends a big file in 64 MB pieces, 4 at a time; each piece is retried on its own. */
+/** Sends a big file in 64 MB pieces, 12 at a time; each piece is retried on its own. */
 async function putBig(filename: string, file: File, type: string, onPart: (done: number, total: number) => void) {
   const { uploadId, partSize, urls } = await post<{ uploadId: string; partSize: number; urls: string[] }>({
     action: 'start',
@@ -222,9 +221,6 @@ export function FastUpload({
     setResult(null)
     setProgress(0)
     try {
-      const tooBig = files.find((f) => kindOf(f) === 'videos' && f.size > MAX_VIDEO)
-      if (tooBig) throw new Error(`${tooBig.name} is over 500 GB. Please compress it first, or add it as a YouTube/Vimeo link.`)
-
       // Photos get shrunk copies (one per web size); everything else goes up as it is.
       const plan = files.map((f) => ({
         name: f.name,
