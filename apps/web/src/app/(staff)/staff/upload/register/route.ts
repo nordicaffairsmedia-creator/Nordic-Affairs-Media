@@ -24,7 +24,7 @@ const body = z.object({
       z.object({
         filename: name,
         mimeType: z.string().max(100),
-        filesize: z.number().int().nonnegative().max(500 * 1024 * 1024 * 1024),
+        filesize: z.number().int().nonnegative(),
         width: z.number().int().positive().optional(),
         height: z.number().int().positive().optional(),
         sizes: z.partialRecord(z.enum(['thumb', 'card', 'feature', 'og']), size).optional(),
