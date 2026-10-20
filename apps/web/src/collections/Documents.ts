@@ -8,6 +8,7 @@ export const Documents: CollectionConfig = {
   defaultSort: '-createdAt',
   admin: {
     group: 'Media library',
+    description: 'Files over 5 GB: use the Bulk upload bar above the list (it has no size limit). This form takes up to 5 GB.',
     useAsTitle: 'title',
     pagination: { defaultLimit: 25, limits: [25, 50, 100] },
     components: { beforeListTable: ['/components/admin/FastUploadBanner#DocumentsListUpload'] },
