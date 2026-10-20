@@ -12,15 +12,14 @@ export const Videos: CollectionConfig = {
   defaultSort: '-createdAt',
   admin: {
     group: 'Media library',
-    description: 'Add files with the Bulk upload bar above the list: any size, any number.',
+    description: 'Bulk upload bar above the list: any size, any number. Create New: one file up to 5 GB.',
     useAsTitle: 'title',
     defaultColumns: ['title', 'filename', 'format'],
     pagination: { defaultLimit: 25, limits: [25, 50, 100] },
     components: { beforeListTable: ['/components/admin/FastUploadBanner#VideosListUpload'] },
   },
-  // New files are added with the Bulk upload bar above the list (any size, any number). The old single
-  // "Create New" form is closed: it stopped at 5 GB. Staff still edit, replace and delete as before.
-  access: { read: anyone, create: () => false, update: staff, delete: staff },
+  // "Create New" (one file, up to 5 GB) and the Bulk upload bar above the list (any size, any number) both work.
+  access: { read: anyone, create: staff, update: staff, delete: staff },
   upload: {
     // Every audio and video format; a few come with an "application/..." type from the browser.
     mimeTypes: [
