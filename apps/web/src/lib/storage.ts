@@ -326,14 +326,26 @@ export async function prepareUploadTargets(
 /*
  * Big files (long videos, master edits of many GB) are sent in pieces ("multipart upload"):
  * one piece of 64 MB at a time, several in parallel, each retried on its own if the connection
- * drops. A single upload can only be 5 GB; in pieces a file can be up to about 600 GB.
+ * drops. A single upload can only be 5 GB; in pieces a file can be up to 5 TB (the R2 limit).
  */
 export const PART_SIZE = 64 * 1024 * 1024
 export const MAX_PARTS = 10_000
+const MIB = 1024 * 1024
+/** Cloudflare R2 limits: one piece 5 GiB at most, one stored file 5 TiB at most. */
+const MAX_PIECE = 5 * 1024 * MIB
+const MAX_OBJECT = 5 * 1024 * 1024 * MIB
+
+/** 64 MB pieces; for enormous files the pieces grow so that the count stays under 9,000. */
+export function partSizeFor(size: number) {
+  return Math.max(PART_SIZE, Math.ceil(size / 9000 / MIB) * MIB)
+}
 
 /** Starts a multipart upload for a name prepareUploadTargets gave out, and signs every piece. */
 export async function startMultipart(key: string, type: string, size: number) {
-  const parts = Math.max(1, Math.ceil(size / PART_SIZE))
+  if (size > MAX_OBJECT) throw new Error('This file is over 5 TB, the most Cloudflare R2 can store in one file.')
+  const partSize = partSizeFor(size)
+  if (partSize > MAX_PIECE) throw new Error('This file is too large to upload.')
+  const parts = Math.max(1, Math.ceil(size / partSize))
   if (parts > MAX_PARTS) throw new Error('This file is too large to upload.')
   const s3 = client()
   const out = await s3.send(new CreateMultipartUploadCommand({ Bucket: bucket(), Key: key, ContentType: type }))
@@ -342,11 +354,11 @@ export async function startMultipart(key: string, type: string, size: number) {
   const urls = await Promise.all(
     Array.from({ length: parts }, (_, i) =>
       getSignedUrl(s3, new UploadPartCommand({ Bucket: bucket(), Key: key, UploadId: uploadId, PartNumber: i + 1 }), {
-        expiresIn: 60 * 60 * 24, // a 50 GB file on a slow line may take many hours
+        expiresIn: 60 * 60 * 24 * 7, // the longest the signature allows: huge files on slow lines take many hours
       }),
     ),
   )
-  return { uploadId, partSize: PART_SIZE, urls }
+  return { uploadId, partSize, urls }
 }
 
 export async function completeMultipart(key: string, uploadId: string, parts: { n: number; etag: string }[]) {
