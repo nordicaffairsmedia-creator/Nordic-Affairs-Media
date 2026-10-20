@@ -258,12 +258,12 @@ export default buildConfig({
     .map(relaxGlobal)
     .map(withGlobalAudit)
     .map(withGlobalInstantSave),
-  // Large uploads (high-resolution photos, videos up to 2 GB): files are written to a
+  // Large uploads (high-resolution photos, videos up to 5 GB): files are written to a
   // temporary file instead of being held in memory, so the small server does not run out.
   upload: {
-    // 2 GB per file (videos, audio, documents); Bulk upload sends files straight to storage. The server's own default request cap is
+    // 5 GB per file in this form (videos, audio, documents); Bulk upload sends files straight to storage. The server's own default request cap is
     // only 50 MB, which silently blocked bigger videos, so it is raised to match.
-    limits: { fileSize: 2 * 1024 * 1024 * 1024 },
+    limits: { fileSize: 5 * 1024 * 1024 * 1024 }, // 5 GB: the most one direct upload to storage can be
     requestSizeLimit: 2100 * 1024 * 1024,
     useTempFiles: true,
     tempFileDir: '/tmp',
