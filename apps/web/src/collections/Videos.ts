@@ -1,22 +1,9 @@
-import type { CollectionBeforeValidateHook, CollectionConfig } from 'payload'
+import type { CollectionConfig } from 'payload'
 import { anyone, staff } from '@/access/roles'
 import { revalidateMediaChange, revalidateMediaDelete } from '@/lib/revalidate'
 
-export const MAX_VIDEO_BYTES = 500 * 1024 * 1024 * 1024
-
-/** Rejects files over 500 GB (works for both normal and direct-to-storage uploads). */
-const limitSize: CollectionBeforeValidateHook = ({ data, req }) => {
-  const size = (req as { file?: { size?: number } }).file?.size ?? (data as { filesize?: number } | undefined)?.filesize
-  if (typeof size === 'number' && size > MAX_VIDEO_BYTES) {
-    throw new Error(
-      `This file is ${(size / 1024 / 1024).toFixed(0)} MB. The limit is 500 GB. Please compress it or add a YouTube/Vimeo link instead.`,
-    )
-  }
-  return data
-}
-
 /**
- * Video and audio files (MP4, MOV, WebM, MP3, WAV ...), short or long. Bulk upload sends big files straight to storage in 64 MB pieces, so size is not a practical limit (single "Create new" uploads stay at 2 GB).
+ * Video and audio files (MP4, MOV, WebM, MP3, WAV ...), short or long. Bulk upload sends big files straight to storage in 64 MB pieces, so there is no size limit on our side (Cloudflare R2 allows up to 5 TB per file). Single "Create new" uploads stay at 2 GB: use the Bulk upload bar for bigger files.
  * Everything uploaded here appears on the public Media page.
  */
 export const Videos: CollectionConfig = {
@@ -33,7 +20,6 @@ export const Videos: CollectionConfig = {
   access: { read: anyone, create: staff, update: staff, delete: staff },
   upload: { mimeTypes: ['video/*', 'audio/*'], pasteURL: false, bulkUpload: false },
   hooks: {
-    beforeValidate: [limitSize],
     afterChange: [revalidateMediaChange],
     afterDelete: [revalidateMediaDelete],
   },
