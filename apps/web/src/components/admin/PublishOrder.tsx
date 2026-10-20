@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 /**
  * Top of every list that can be rearranged by dragging: after moving rows, press Publish and
@@ -9,6 +9,30 @@ import { useState } from 'react'
 export function PublishOrder() {
   const [state, setState] = useState<'idle' | 'busy' | 'done' | 'error'>('idle')
   const [msg, setMsg] = useState('')
+  // Media, Videos & audio and Documents open newest first; "Rearrange" switches them to drag-and-drop order.
+  const [view, setView] = useState<{ files: boolean; manual: boolean }>({ files: false, manual: true })
+  useEffect(() => {
+    const files = /\/collections\/(media|videos|documents)\/?$/.test(window.location.pathname)
+    setView({ files, manual: !files || new URLSearchParams(window.location.search).get('sort') === '_order' })
+  }, [])
+
+  function go(sort: string, limit: string) {
+    const url = new URL(window.location.href)
+    url.searchParams.set('sort', sort)
+    url.searchParams.set('page', '1')
+    url.searchParams.set('limit', limit)
+    window.location.assign(url.toString())
+  }
+
+  const pill = {
+    padding: '0.55rem 1.3rem',
+    borderRadius: 999,
+    border: '1px solid currentColor',
+    background: 'transparent',
+    color: 'inherit',
+    fontWeight: 700,
+    cursor: 'pointer',
+  } as const
 
   async function publish() {
     setState('busy')
@@ -37,6 +61,16 @@ export function PublishOrder() {
         gap: '0.75rem',
       }}
     >
+      {view.files && !view.manual && (
+        <button type="button" onClick={() => go('_order', '100')} style={pill}>
+          Rearrange
+        </button>
+      )}
+      {view.files && view.manual && (
+        <button type="button" onClick={() => go('-createdAt', '25')} style={pill}>
+          Newest first
+        </button>
+      )}
       <button
         type="button"
         onClick={() => void publish()}
@@ -54,7 +88,10 @@ export function PublishOrder() {
         {state === 'busy' ? 'Publishing…' : 'Publish'}
       </button>
       <span style={{ opacity: 0.85, color: state === 'error' ? '#ff6b6b' : undefined }}>
-        {msg || 'Drag the rows (⋮⋮) into the order you want, then press Publish.'}
+        {msg ||
+          (view.manual
+            ? 'Drag the rows (⋮⋮) into the order you want, then press Publish.'
+            : 'Press Rearrange to put these files in your own order, then Publish.')}
       </span>
     </div>
   )

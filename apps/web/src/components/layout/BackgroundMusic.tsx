@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 
 /**
@@ -18,6 +18,13 @@ function BackgroundMusicPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const isUnlockedRef = useRef<boolean>(false)
   const pathname = usePathname()
+  // The visitor pressed Pause: the music stays off (even on the next page) until they press Play.
+  const userPausedRef = useRef<boolean>(false)
+  // Videos / audio clips on the page that are playing right now: the music waits for them.
+  const mediaPlayingRef = useRef<Set<HTMLMediaElement>>(new Set())
+  const [soundOn, setSoundOn] = useState(false)
+
+  const blocked = () => userPausedRef.current || mediaPlayingRef.current.size > 0
 
   useEffect(() => {
     const audio = audioRef.current
@@ -25,9 +32,18 @@ function BackgroundMusicPlayer() {
 
     audio.volume = 0.55
 
+    try {
+      userPausedRef.current = window.localStorage.getItem('nam-music') === 'off'
+    } catch {}
+
+    const sync = () => setSoundOn(!audio.paused && !audio.muted)
+    audio.addEventListener('play', sync)
+    audio.addEventListener('pause', sync)
+    audio.addEventListener('volumechange', sync)
+
     // Function to safely attempt playing with sound
     const startAudioWithSound = () => {
-      if (!audioRef.current) return
+      if (!audioRef.current || blocked()) return
       const a = audioRef.current
 
       a.muted = false
@@ -60,7 +76,7 @@ function BackgroundMusicPlayer() {
 
     // Attempt 1: Immediate unmuted autoplay (works if user has visited before or in in-app webviews)
     audio.muted = false
-    const initialPlay = audio.play()
+    const initialPlay = blocked() ? undefined : audio.play()
 
     if (initialPlay !== undefined) {
       initialPlay
@@ -77,8 +93,9 @@ function BackgroundMusicPlayer() {
     }
 
     // User gesture handler: fires on the very first touch, tap, click, or keypress anywhere on the screen
-    const handleGesture = () => {
-      if (isUnlockedRef.current) return
+    const handleGesture = (e: Event) => {
+      if (isUnlockedRef.current || blocked()) return
+      if (e.target instanceof Element && e.target.closest('[data-music-toggle]')) return
       startAudioWithSound()
     }
 
@@ -105,6 +122,7 @@ function BackgroundMusicPlayer() {
 
     // Resume when returning to the tab / unlocking screen
     const handleVisibility = () => {
+      if (blocked()) return
       if (document.visibilityState === 'visible' && audioRef.current) {
         if (!isUnlockedRef.current) {
           startAudioWithSound()
@@ -117,7 +135,36 @@ function BackgroundMusicPlayer() {
     document.addEventListener('visibilitychange', handleVisibility)
     window.addEventListener('focus', handleVisibility)
 
+    // A video or audio clip starts: the music stops. When the last one stops or ends: the music
+    // comes back (unless the visitor pressed Pause). Media events do not bubble, so listen while capturing.
+    const resumeIfFree = () => {
+      const a = audioRef.current
+      if (!a || blocked() || !isUnlockedRef.current) return
+      a.play().catch(() => {})
+    }
+    const onMediaPlay = (e: Event) => {
+      const el = e.target
+      if (!(el instanceof HTMLMediaElement) || el === audioRef.current) return
+      mediaPlayingRef.current.add(el)
+      audioRef.current?.pause()
+    }
+    const onMediaStop = (e: Event) => {
+      const el = e.target
+      if (!(el instanceof HTMLMediaElement) || el === audioRef.current) return
+      mediaPlayingRef.current.delete(el)
+      resumeIfFree()
+    }
+    document.addEventListener('play', onMediaPlay, true)
+    document.addEventListener('pause', onMediaStop, true)
+    document.addEventListener('ended', onMediaStop, true)
+
     return () => {
+      audio.removeEventListener('play', sync)
+      audio.removeEventListener('pause', sync)
+      audio.removeEventListener('volumechange', sync)
+      document.removeEventListener('play', onMediaPlay, true)
+      document.removeEventListener('pause', onMediaStop, true)
+      document.removeEventListener('ended', onMediaStop, true)
       cleanupListeners()
       document.removeEventListener('visibilitychange', handleVisibility)
       window.removeEventListener('focus', handleVisibility)
@@ -126,16 +173,43 @@ function BackgroundMusicPlayer() {
 
   // Keep playing on Next.js client-side route changes
   useEffect(() => {
-    if (audioRef.current && isUnlockedRef.current && audioRef.current.paused) {
+    // Clips that left the page with the old route will never send "pause": forget them.
+    mediaPlayingRef.current.forEach((el) => {
+      if (!el.isConnected) mediaPlayingRef.current.delete(el)
+    })
+    if (audioRef.current && isUnlockedRef.current && audioRef.current.paused && !blocked()) {
       audioRef.current.play().catch(() => {})
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname])
 
+  const toggle = useCallback(() => {
+    const a = audioRef.current
+    if (!a) return
+    if (!a.paused && !a.muted) {
+      userPausedRef.current = true
+      try {
+        window.localStorage.setItem('nam-music', 'off')
+      } catch {}
+      a.pause()
+    } else {
+      userPausedRef.current = false
+      try {
+        window.localStorage.setItem('nam-music', 'on')
+      } catch {}
+      a.muted = false
+      isUnlockedRef.current = true
+      // Pressing Play while a video is playing is allowed: the visitor chose it.
+      mediaPlayingRef.current.forEach((el) => el.pause())
+      a.play().catch(() => {})
+    }
+  }, [])
+
   return (
+    <>
     <audio
       ref={audioRef}
       src="/music.mp3"
-      autoPlay
       loop
       preload="auto"
       playsInline
@@ -151,6 +225,43 @@ function BackgroundMusicPlayer() {
       }}
       aria-hidden="true"
     />
+    <button
+      type="button"
+      data-music-toggle
+      onClick={toggle}
+      aria-label={soundOn ? 'Pause background music' : 'Play background music'}
+      aria-pressed={soundOn}
+      title={soundOn ? 'Pause music' : 'Play music'}
+      style={{
+        position: 'fixed',
+        left: 16,
+        bottom: 16,
+        zIndex: 60,
+        width: 44,
+        height: 44,
+        borderRadius: '50%',
+        border: '1px solid rgba(255,255,255,.55)',
+        background: 'rgba(10,25,48,.85)',
+        color: '#fff',
+        display: 'grid',
+        placeItems: 'center',
+        cursor: 'pointer',
+        backdropFilter: 'blur(6px)',
+        boxShadow: '0 4px 14px rgba(0,0,0,.35)',
+      }}
+    >
+      {soundOn ? (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <rect x="6" y="5" width="4" height="14" rx="1" />
+          <rect x="14" y="5" width="4" height="14" rx="1" />
+        </svg>
+      ) : (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" />
+        </svg>
+      )}
+    </button>
+    </>
   )
 }
 

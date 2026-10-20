@@ -300,7 +300,7 @@ export const getPublicVideos = cache(async (limit = 60) => {
     collection: 'videos',
     depth: 1,
     limit,
-    sort: '-createdAt',
+    sort: ['_order', '-createdAt'],
     where: { showOnWebsite: { not_equals: false } },
     ...PUBLIC,
   })
@@ -313,7 +313,7 @@ export const getPublicPhotos = cache(async (limit = 60) => {
     collection: 'media',
     depth: 0,
     limit,
-    sort: '-createdAt',
+    sort: ['_order', '-createdAt'],
     // Opt-in: only pictures ticked "Show on the Media page" appear there.
     where: { and: [{ showOnMediaPage: { equals: true } }, { isPlaceholder: { not_equals: true } }] },
     ...PUBLIC,
@@ -327,7 +327,7 @@ export const getPublicDocuments = cache(async (limit = 60) => {
     collection: 'documents',
     depth: 0,
     limit,
-    sort: '-createdAt',
+    sort: ['_order', '-createdAt'],
     where: { showOnWebsite: { not_equals: false } },
     ...PUBLIC,
   })

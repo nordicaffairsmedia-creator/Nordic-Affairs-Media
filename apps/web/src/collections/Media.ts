@@ -1,13 +1,15 @@
 import type { CollectionConfig } from 'payload'
 import { anyone, staff } from '@/access/roles'
+import { placeOnTop } from '@/lib/orderTop'
 import { revalidateMediaChange, revalidateMediaDelete } from '@/lib/revalidate'
 
 export const Media: CollectionConfig = {
   slug: 'media',
-  // Not "orderable": that sorted the list by hand-made position, so every new upload landed on
-  // the last page. Newest first now: a new upload is on page 1, in the order it was added.
+  // The list opens newest first (a new upload is on page 1). "Rearrange" (above the list) switches to
+  // drag-and-drop order, and Publish makes the website show that order. New files start at the top.
+  orderable: true,
   defaultSort: '-createdAt',
-  hooks: { afterChange: [revalidateMediaChange], afterDelete: [revalidateMediaDelete] },
+  hooks: { beforeChange: [placeOnTop], afterChange: [revalidateMediaChange], afterDelete: [revalidateMediaDelete] },
   admin: {
     group: 'Media library',
     defaultColumns: ['filename', 'alt', 'credit'],

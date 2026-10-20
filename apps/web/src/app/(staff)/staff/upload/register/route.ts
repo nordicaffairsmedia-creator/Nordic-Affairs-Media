@@ -4,6 +4,7 @@ import { hasRole } from '@/access/roles'
 import { getPayloadClient } from '@/lib/payload'
 import { purgeMediaPages } from '@/lib/revalidate'
 import { getStaffUser } from '@/lib/staff'
+import { generateNKeysBetween } from 'payload/shared'
 
 export const dynamic = 'force-dynamic'
 
@@ -55,6 +56,23 @@ export async function POST(req: Request) {
 
   const payload = await getPayloadClient()
   const base = Date.now()
+  // New files go to the top of the manual order (Rearrange), the first chosen file first.
+  let keys: string[] = []
+  try {
+    const first = await payload.find({
+      collection: kind,
+      depth: 0,
+      limit: 1,
+      pagination: false,
+      sort: '_order',
+      select: { _order: true } as never,
+      where: { _order: { exists: true } } as never,
+    })
+    const firstKey = (first.docs[0] as unknown as { _order?: string } | undefined)?._order ?? null
+    keys = generateNKeysBetween(null, firstKey, items.length)
+  } catch {
+    keys = []
+  }
   let added = 0
   const failed: string[] = []
   // IDs of the new records, in the order the files were chosen (the gallery tool adds them as photos).
@@ -70,6 +88,7 @@ export async function POST(req: Request) {
           kind === 'media'
             ? {
                 ...it,
+                ...(keys[i] ? { _order: keys[i] } : {}),
                 credit: credit || 'Nordic Affairs Media',
                 showOnMediaPage: showOnPage,
                 isPlaceholder: false,
@@ -78,6 +97,7 @@ export async function POST(req: Request) {
               }
             : kind === 'documents'
               ? {
+                  ...(keys[i] ? { _order: keys[i] } : {}),
                   filename: it.filename,
                   mimeType: it.mimeType,
                   filesize: it.filesize,
@@ -88,6 +108,7 @@ export async function POST(req: Request) {
                   updatedAt: at.toISOString(),
                 }
               : {
+                ...(keys[i] ? { _order: keys[i] } : {}),
                 filename: it.filename,
                 mimeType: it.mimeType,
                 filesize: it.filesize,

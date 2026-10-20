@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import { anyone, staff } from '@/access/roles'
+import { placeOnTop } from '@/lib/orderTop'
 import { revalidateMediaChange, revalidateMediaDelete } from '@/lib/revalidate'
 
 /**
@@ -9,6 +10,7 @@ import { revalidateMediaChange, revalidateMediaDelete } from '@/lib/revalidate'
 export const Videos: CollectionConfig = {
   slug: 'videos',
   labels: { singular: 'Video / audio', plural: 'Videos & audio' },
+  orderable: true,
   defaultSort: '-createdAt',
   admin: {
     group: 'Media library',
@@ -39,6 +41,7 @@ export const Videos: CollectionConfig = {
     bulkUpload: false,
   },
   hooks: {
+    beforeChange: [placeOnTop],
     afterChange: [revalidateMediaChange],
     afterDelete: [revalidateMediaDelete],
   },

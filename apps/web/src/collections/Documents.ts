@@ -1,10 +1,12 @@
 import type { CollectionConfig } from 'payload'
 import { anyone, staff } from '@/access/roles'
+import { placeOnTop } from '@/lib/orderTop'
 import { revalidateOnChange, revalidateOnDelete } from '@/lib/revalidate'
 
 /** Documents (PDF, Word, Excel ...): magazine issues, press kits, policies. */
 export const Documents: CollectionConfig = {
   slug: 'documents',
+  orderable: true,
   defaultSort: '-createdAt',
   admin: {
     group: 'Media library',
@@ -13,7 +15,7 @@ export const Documents: CollectionConfig = {
     pagination: { defaultLimit: 25, limits: [25, 50, 100] },
     components: { beforeListTable: ['/components/admin/FastUploadBanner#DocumentsListUpload'] },
   },
-  hooks: { afterChange: [revalidateOnChange], afterDelete: [revalidateOnDelete] },
+  hooks: { beforeChange: [placeOnTop], afterChange: [revalidateOnChange], afterDelete: [revalidateOnDelete] },
   // "Create New" (one file, up to 5 GB) and the Bulk upload bar above the list (any size, any number) both work.
   access: { read: anyone, create: staff, update: staff, delete: staff },
   upload: {
