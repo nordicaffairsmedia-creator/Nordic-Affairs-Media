@@ -1,7 +1,7 @@
 'use client'
 
 import { useConfig, useUploadHandlers } from '@payloadcms/ui'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 /**
  * "Create New" in Videos & audio, Documents and Media: no size limit.
@@ -37,7 +37,7 @@ async function post<T>(body: unknown): Promise<T> {
   return j
 }
 
-async function putPieces(signedUrl: string, file: File, type: string) {
+async function putPieces(signedUrl: string, file: File, type: string, onProgress: (done: number, total: number) => void) {
   const { key, uploadId, partSize, urls } = await post<{ key: string; uploadId: string; partSize: number; urls: string[] }>({
     action: 'start',
     signedUrl,
@@ -46,6 +46,7 @@ async function putPieces(signedUrl: string, file: File, type: string) {
   })
   const parts: { n: number; etag: string }[] = []
   let next = 0
+  onProgress(0, urls.length)
   try {
     const worker = async () => {
       for (;;) {
@@ -68,6 +69,7 @@ async function putPieces(signedUrl: string, file: File, type: string) {
         }
         if (!etag) throw lastErr instanceof Error ? lastErr : new Error(String(lastErr))
         parts.push({ n: i + 1, etag })
+        onProgress(parts.length, urls.length)
       }
     }
     await Promise.all(Array.from({ length: Math.min(PART_CONCURRENCY, urls.length) }, worker))
@@ -79,6 +81,7 @@ async function putPieces(signedUrl: string, file: File, type: string) {
 }
 
 export function BigUploadHandler({ children }: { children?: React.ReactNode }) {
+  const [prog, setProg] = useState<{ name: string; done: number; total: number; msg?: string; err?: boolean } | null>(null)
   const { setUploadHandler } = useUploadHandlers()
   const {
     config: {
@@ -117,14 +120,20 @@ export function BigUploadHandler({ children }: { children?: React.ReactNode }) {
               }
               if (filename && filename !== file.name) updateFilename(filename)
               const type = file.type || 'application/octet-stream'
-              if (file.size > BIG) await putPieces(url, file, type)
+              if (file.size > BIG) {
+                await putPieces(url, file, type, (done, total) => setProg({ name: file.name, done, total }))
+                setProg({ name: file.name, done: 1, total: 1, msg: 'Upload finished. Saving...' })
+                setTimeout(() => setProg(null), 6000)
+              }
               else {
                 const up = await fetch(url, { method: 'PUT', body: file, headers })
                 if (!up.ok) throw new Error(`Storage answered ${up.status}`)
               }
               return { prefix: clientUploadContext.prefix, signedReceipt: clientUploadContext.signedReceipt }
             } catch (e) {
-              throw explain(e)
+              const ex = explain(e)
+              setProg({ name: file.name, done: 0, total: 1, msg: ex.message, err: true })
+              throw ex
             }
           },
         })
@@ -136,5 +145,37 @@ export function BigUploadHandler({ children }: { children?: React.ReactNode }) {
     return () => clearTimeout(t)
   }, [setUploadHandler, api, serverURL])
 
-  return <>{children}</>
+  const pct = prog && prog.total ? Math.round((prog.done / prog.total) * 100) : 0
+  return (
+    <>
+      {children}
+      {prog && (
+        <div
+          role="status"
+          style={{
+            position: 'fixed', right: 16, bottom: 16, zIndex: 99999, width: 340, padding: 14, borderRadius: 10,
+            background: '#0b1b36', color: '#fff', border: `1px solid ${prog.err ? '#e5484d' : '#3b6fd8'}`,
+            boxShadow: '0 8px 30px rgba(0,0,0,.4)', fontSize: 13,
+          }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prog.name}</div>
+          {prog.err ? (
+            <div style={{ color: '#ff9b9e' }}>{prog.msg}</div>
+          ) : (
+            <>
+              <div style={{ height: 8, borderRadius: 4, background: '#1d3358', overflow: 'hidden' }}>
+                <div style={{ width: `${pct}%`, height: '100%', background: '#3b6fd8', transition: 'width .3s' }} />
+              </div>
+              <div style={{ marginTop: 6 }}>{prog.msg ?? `Uploading to Cloudflare: ${pct}% (${prog.done} of ${prog.total} pieces). Keep this tab open.`}</div>
+            </>
+          )}
+          {prog.err && (
+            <button type="button" onClick={() => setProg(null)} style={{ marginTop: 8, cursor: 'pointer' }}>
+              Close
+            </button>
+          )}
+        </div>
+      )}
+    </>
+  )
 }
