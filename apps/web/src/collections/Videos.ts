@@ -18,7 +18,21 @@ export const Videos: CollectionConfig = {
     components: { beforeListTable: ['/components/admin/FastUploadBanner#VideosListUpload'] },
   },
   access: { read: anyone, create: staff, update: staff, delete: staff },
-  upload: { mimeTypes: ['video/*', 'audio/*'], pasteURL: false, bulkUpload: false },
+  upload: {
+    // Every audio and video format; a few come with an "application/..." type from the browser.
+    mimeTypes: [
+      'video/*',
+      'audio/*',
+      'application/mxf',
+      'application/ogg',
+      'application/vnd.rn-realmedia',
+      'application/vnd.rn-realmedia-vbr',
+      'application/x-mpegURL',
+      'application/vnd.apple.mpegurl',
+    ],
+    pasteURL: false,
+    bulkUpload: false,
+  },
   hooks: {
     afterChange: [revalidateMediaChange],
     afterDelete: [revalidateMediaDelete],
