@@ -50,17 +50,38 @@ const DOC_TYPES = [
   'text/csv',
   'application/zip',
 ]
-const kindOf = (f: File): Kind | null =>
-  IMAGE_TYPES.includes(f.type)
-    ? 'media'
-    : f.type.startsWith('video/') || f.type.startsWith('audio/')
-      ? 'videos'
-      : DOC_TYPES.includes(f.type)
-        ? 'documents'
-        : null
+/**
+ * Audio and video come in many formats, and browsers often report no type at all for the less common
+ * ones (MKV, FLAC, MXF, TS ...). The file ending is used then, so every format is accepted and is
+ * stored with the right type.
+ */
+const AV_MIME: Record<string, string> = {
+  mp4: 'video/mp4', m4v: 'video/x-m4v', mov: 'video/quicktime', avi: 'video/x-msvideo', mkv: 'video/x-matroska',
+  webm: 'video/webm', wmv: 'video/x-ms-wmv', flv: 'video/x-flv', f4v: 'video/mp4', mpg: 'video/mpeg',
+  mpeg: 'video/mpeg', mpe: 'video/mpeg', m2v: 'video/mpeg', vob: 'video/mpeg', m2ts: 'video/mp2t',
+  mts: 'video/mp2t', ts: 'video/mp2t', '3gp': 'video/3gpp', '3g2': 'video/3gpp2', ogv: 'video/ogg',
+  asf: 'video/x-ms-asf', divx: 'video/x-msvideo', mxf: 'application/mxf', rm: 'application/vnd.rn-realmedia',
+  rmvb: 'application/vnd.rn-realmedia-vbr', mp3: 'audio/mpeg', wav: 'audio/wav', flac: 'audio/flac',
+  aac: 'audio/aac', m4a: 'audio/mp4', m4b: 'audio/mp4', wma: 'audio/x-ms-wma', oga: 'audio/ogg',
+  ogg: 'audio/ogg', opus: 'audio/opus', aiff: 'audio/aiff', aif: 'audio/aiff', aifc: 'audio/aiff',
+  amr: 'audio/amr', mid: 'audio/midi', midi: 'audio/midi', ac3: 'audio/ac3', caf: 'audio/x-caf',
+  mka: 'audio/x-matroska', weba: 'audio/webm',
+}
+const extOf = (name: string) => name.toLowerCase().split('.').pop() ?? ''
+const mimeOf = (f: File): string => {
+  const t = f.type
+  if (t.startsWith('video/') || t.startsWith('audio/') || t.startsWith('image/')) return t
+  return AV_MIME[extOf(f.name)] ?? (t || 'application/octet-stream')
+}
+const kindOf = (f: File): Kind | null => {
+  const t = mimeOf(f)
+  if (IMAGE_TYPES.includes(t)) return 'media'
+  if (t.startsWith('video/') || t.startsWith('audio/') || AV_MIME[extOf(f.name)]) return 'videos'
+  return DOC_TYPES.includes(t) ? 'documents' : null
+}
 const ACCEPT: Record<Kind, string> = {
   media: 'image/jpeg,image/png,image/webp,image/avif,image/gif',
-  videos: 'video/*,audio/*',
+  videos: ['video/*', 'audio/*', ...Object.keys(AV_MIME).map((e) => `.${e}`)].join(','),
   documents: DOC_TYPES.join(','),
 }
 const WORDS: Record<Kind, string> = { media: 'photos', videos: 'videos and audio', documents: 'documents' }
@@ -224,7 +245,7 @@ export function FastUpload({
       // Photos get shrunk copies (one per web size); everything else goes up as it is.
       const plan = files.map((f) => ({
         name: f.name,
-        type: f.type || 'application/octet-stream',
+        type: mimeOf(f),
         variants:
           kindOf(f) === 'media' && f.type !== 'image/gif'
             ? SIZES.map((s) => ({ key: s.key, ext: 'webp' as const, type: 'image/webp' as const }))
@@ -249,7 +270,7 @@ export function FastUpload({
           const file = files[i]!
           const target = data.targets![i]!
           try {
-            const type = file.type || 'application/octet-stream'
+            const type = mimeOf(file)
             const item: Item = { filename: target.filename, mimeType: type, filesize: file.size }
             if (kindOf(file) === 'media') {
               const made = await makeVariants(file)
