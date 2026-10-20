@@ -8,7 +8,7 @@ export const Documents: CollectionConfig = {
   defaultSort: '-createdAt',
   admin: {
     group: 'Media library',
-    description: 'Bulk upload bar above the list: any size, any number. Create New: one file up to 5 GB.',
+    description: 'Bulk upload bar above the list: any size, any number. Create New: one file, no size limit.',
     useAsTitle: 'title',
     pagination: { defaultLimit: 25, limits: [25, 50, 100] },
     components: { beforeListTable: ['/components/admin/FastUploadBanner#DocumentsListUpload'] },

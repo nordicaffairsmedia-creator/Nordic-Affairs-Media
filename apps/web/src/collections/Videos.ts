@@ -3,7 +3,7 @@ import { anyone, staff } from '@/access/roles'
 import { revalidateMediaChange, revalidateMediaDelete } from '@/lib/revalidate'
 
 /**
- * Video and audio files (MP4, MOV, WebM, MP3, WAV ...), short or long. Bulk upload sends big files straight to storage in 64 MB pieces, so there is no size limit on our side (Cloudflare R2 allows up to 5 TB per file). Single "Create new" uploads stay at 2 GB: use the Bulk upload bar for bigger files.
+ * Video and audio files (MP4, MOV, WebM, MP3, WAV ...), short or long. Bulk upload sends big files straight to storage in 64 MB pieces, so there is no size limit on our side (Cloudflare R2 allows up to 5 TB per file). "Create new" also has no size limit (big files go in pieces).
  * Everything uploaded here appears on the public Media page.
  */
 export const Videos: CollectionConfig = {
@@ -12,7 +12,7 @@ export const Videos: CollectionConfig = {
   defaultSort: '-createdAt',
   admin: {
     group: 'Media library',
-    description: 'Bulk upload bar above the list: any size, any number. Create New: one file up to 5 GB.',
+    description: 'Bulk upload bar above the list: any size, any number. Create New: one file, no size limit.',
     useAsTitle: 'title',
     defaultColumns: ['title', 'filename', 'format'],
     pagination: { defaultLimit: 25, limits: [25, 50, 100] },

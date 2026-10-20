@@ -2,15 +2,22 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { hasRole } from '@/access/roles'
 import { getStaffUser } from '@/lib/staff'
-import { abortMultipart, completeMultipart, startMultipart, storageEnabled } from '@/lib/storage'
+import { abortMultipart, completeMultipart, keyFromSignedUrl, startMultipart, storageEnabled } from '@/lib/storage'
 
 export const dynamic = 'force-dynamic'
 
-const key = z.string().regex(/^[\w.-]{1,160}$/)
+// A plain name, or a full storage key such as "<id>/<name>" (never empty parts or "..").
+const key = z
+  .string()
+  .max(500)
+  .regex(/^[^\x00-\x1f\\]+$/)
+  .refine((k) => k.split('/').every((seg) => seg !== '' && seg !== '..' && seg !== '.'))
 const body = z.discriminatedUnion('action', [
   z.object({
     action: z.literal('start'),
-    filename: key,
+    filename: key.optional(),
+    /** The signed address Payload's form handed out: the upload goes to that exact storage key. */
+    signedUrl: z.string().url().max(4000).optional(),
     type: z.string().min(3).max(100),
     size: z.number().int().positive(),
   }),
@@ -34,7 +41,11 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: 'Bad request' }, { status: 400 })
   const b = parsed.data
   try {
-    if (b.action === 'start') return NextResponse.json(await startMultipart(b.filename, b.type, b.size))
+    if (b.action === 'start') {
+      const name = b.signedUrl ? keyFromSignedUrl(b.signedUrl) : b.filename
+      if (!name) return NextResponse.json({ error: 'Bad request' }, { status: 400 })
+      return NextResponse.json({ key: name, ...(await startMultipart(name, b.type, b.size)) })
+    }
     if (b.action === 'complete') {
       await completeMultipart(b.filename, b.uploadId, b.parts)
       return NextResponse.json({ ok: true })

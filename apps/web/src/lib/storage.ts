@@ -340,6 +340,21 @@ export function partSizeFor(size: number) {
   return Math.max(PART_SIZE, Math.ceil(size / 9000 / MIB) * MIB)
 }
 
+/**
+ * The storage key behind a signed address that Payload's own upload route issued (path style
+ * `/bucket/key` or host style `/key`). Only the signed address's own host and a plain key are accepted.
+ */
+export function keyFromSignedUrl(signedUrl: string): string {
+  const u = new URL(signedUrl)
+  if (process.env.S3_ENDPOINT && u.host !== new URL(process.env.S3_ENDPOINT).host && !u.host.startsWith(`${bucket()}.`))
+    throw new Error('That address does not belong to this storage.')
+  let path = decodeURIComponent(u.pathname).replace(/^\/+/, '')
+  if (path.startsWith(`${bucket()}/`)) path = path.slice(bucket().length + 1)
+  if (!path || path.split('/').some((seg) => seg === '' || seg === '..' || seg === '.'))
+    throw new Error('Unexpected storage address.')
+  return path
+}
+
 /** Starts a multipart upload for a name prepareUploadTargets gave out, and signs every piece. */
 export async function startMultipart(key: string, type: string, size: number) {
   if (size > MAX_OBJECT) throw new Error('This file is over 5 TB, the most Cloudflare R2 can store in one file.')

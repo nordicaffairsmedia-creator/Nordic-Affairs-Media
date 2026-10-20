@@ -189,7 +189,7 @@ export default buildConfig({
     importMap: { baseDir: path.resolve(dirname) },
     components: {
       // Eye button on every password field in the content manager.
-      providers: ['/components/admin/PasswordReveal#PasswordReveal'],
+      providers: ['/components/admin/PasswordReveal#PasswordReveal', '/components/admin/BigUploadHandler#BigUploadHandler'],
       graphics: {
         Logo: '/components/admin/Brand#Logo',
         Icon: '/components/admin/Brand#Icon',
@@ -261,9 +261,8 @@ export default buildConfig({
   // Large uploads (high-resolution photos, videos up to 5 GB): files are written to a
   // temporary file instead of being held in memory, so the small server does not run out.
   upload: {
-    // 5 GB per file in this form (videos, audio, documents); Bulk upload sends files straight to storage. The server's own default request cap is
-    // only 50 MB, which silently blocked bigger videos, so it is raised to match.
-    limits: { fileSize: 5 * 1024 * 1024 * 1024 }, // 5 GB: the most one direct upload to storage can be
+    // No size limit in the form. Big files go to Cloudflare in pieces (BigUploadHandler); the ceiling is Cloudflare's own 5 TB per file.
+    limits: { fileSize: Infinity },
     requestSizeLimit: 2100 * 1024 * 1024,
     useTempFiles: true,
     tempFileDir: '/tmp',
