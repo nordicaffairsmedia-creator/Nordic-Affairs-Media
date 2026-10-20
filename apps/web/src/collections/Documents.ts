@@ -8,13 +8,15 @@ export const Documents: CollectionConfig = {
   defaultSort: '-createdAt',
   admin: {
     group: 'Media library',
-    description: 'Files over 5 GB: use the Bulk upload bar above the list (it has no size limit). This form takes up to 5 GB.',
+    description: 'Add files with the Bulk upload bar above the list: any size, any number.',
     useAsTitle: 'title',
     pagination: { defaultLimit: 25, limits: [25, 50, 100] },
     components: { beforeListTable: ['/components/admin/FastUploadBanner#DocumentsListUpload'] },
   },
   hooks: { afterChange: [revalidateOnChange], afterDelete: [revalidateOnDelete] },
-  access: { read: anyone, create: staff, update: staff, delete: staff },
+  // New files are added with the Bulk upload bar above the list (any size, any number). The old single
+  // "Create New" form is closed: it stopped at 5 GB. Staff still edit, replace and delete as before.
+  access: { read: anyone, create: () => false, update: staff, delete: staff },
   upload: {
     pasteURL: false,
     bulkUpload: false,
