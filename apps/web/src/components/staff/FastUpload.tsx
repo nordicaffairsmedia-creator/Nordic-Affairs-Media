@@ -86,6 +86,19 @@ const ACCEPT: Record<Kind, string> = {
 }
 const WORDS: Record<Kind, string> = { media: 'photos', videos: 'videos and audio', documents: 'documents' }
 
+/**
+ * When Cloudflare turns a file away (storage full, free allowance used up, or no payment method on
+ * the account) it answers 402, 403 or 507, or says so in words. Say what to do about it in plain words.
+ */
+const NO_STORAGE =
+  'No storage left in Cloudflare. Please buy more storage: in Cloudflare open R2 > Billing and add a payment method or a bigger plan, then upload again.'
+function explain(e: unknown): string {
+  const m = e instanceof Error ? e.message : String(e)
+  return /\b(402|403|507)\b|quota|exceed|insufficient|billing|payment|no space|storage limit|StorageLimit|AccessDenied/i.test(m)
+    ? `${NO_STORAGE} (Details: ${m})`
+    : m
+}
+
 async function putFile(url: string, body: Blob, type: string) {
   const res = await fetch(url, { method: 'PUT', body, headers: { 'Content-Type': type } })
   if (!res.ok) throw new Error(`Storage answered ${res.status}`)
@@ -301,7 +314,7 @@ export function FastUpload({
             else await putFile(target.url, file, type)
             items[i] = item
           } catch (e) {
-            failed.push(`${file.name}: ${e instanceof Error ? e.message : String(e)}`)
+            failed.push(`${file.name}: ${explain(e)}`)
           }
           done++
           setProgress(Math.round((done / files.length) * 90))
@@ -347,7 +360,7 @@ export function FastUpload({
       if (compact && listPath && failed.length === 0)
         window.location.assign(`${listPath}?sort=-createdAt&limit=25&page=1`)
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(explain(e))
     } finally {
       setBusy(false)
       setBig(null)
