@@ -5,7 +5,7 @@ import { getDictionary } from '@/i18n/getDictionary'
 import { getHomepage, getSiteChrome } from '@/lib/queries'
 import { buildMetadata } from '@/lib/seo'
 import { href, siteUrl } from '@/lib/site'
-import { NewsletterPanel } from '@/components/editorial/NewsletterPanel'
+import { WorkTogetherPanel } from '@/components/editorial/WorkTogetherPanel'
 import { HeroSlideshow, type HeroImage } from '@/components/editorial/HeroSlideshow'
 import { getPayloadClient } from '@/lib/payload'
 import { HERO_SLIDES, OLD_UPLOADS } from '@/lib/wordpress/heroSlides'
@@ -114,7 +114,7 @@ export default async function HomePage({ params }: Params) {
       <JsonLd data={organization} />
       {pageHeading}
       {hero}
-      {home.showNewsletter ? <NewsletterPanel t={t} locale={locale} /> : null}
+      <WorkTogetherPanel contact={settings} />
     </>
   )
 }
