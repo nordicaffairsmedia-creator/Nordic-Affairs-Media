@@ -170,7 +170,7 @@ export default buildConfig({
     // Free MongoDB Atlas allows ~500 connections. Every Vercel/Render instance opens its own
     // pool, so keep each pool small and close idle connections quickly. Without this the
     // limit is hit and pages that read the database fail with "server-side exception".
-    connectOptions: { maxPoolSize: process.env.VERCEL ? 5 : 3, minPoolSize: 0, maxIdleTimeMS: 15_000, serverSelectionTimeoutMS: 8_000 },
+    connectOptions: { maxPoolSize: process.env.VERCEL ? 2 : 3, minPoolSize: 0, maxConnecting: 2, maxIdleTimeMS: 10_000, serverSelectionTimeoutMS: 10_000, socketTimeoutMS: 30_000, retryReads: true, retryWrites: true },
   }),
   editor: lexicalEditor(),
   sharp,

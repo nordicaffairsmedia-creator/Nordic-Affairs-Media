@@ -2,7 +2,12 @@ import { MongoClient, type Db } from 'mongodb'
 import { env } from './env.js'
 
 let db: Db | null = null
-const client = new MongoClient(env.DATABASE_URI)
+const client = new MongoClient(env.DATABASE_URI, {
+  maxPoolSize: 10,
+  minPoolSize: 0,
+  maxIdleTimeMS: 30_000,
+  serverSelectionTimeoutMS: 10_000,
+})
 
 /**
  * Collections owned by the booking API (all prefixed `booking_`; the CMS never writes them):

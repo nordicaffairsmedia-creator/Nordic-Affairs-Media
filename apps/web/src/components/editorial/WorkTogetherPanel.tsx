@@ -1,7 +1,6 @@
 import { Mail, MapPin, Phone, Send } from 'lucide-react'
-
-/** Where "Get In Touch" leads (requested address). */
-const GET_IN_TOUCH_URL = 'https://www.nordicaffairsmedia.com/home/'
+import type { Locale } from '@/i18n/config'
+import { href } from '@/lib/site'
 
 type Contact = {
   contactEmail?: string | null
@@ -15,7 +14,7 @@ type Contact = {
  * paper-plane icon, heading, one line of text and a "Get In Touch" button on the left,
  * email / phone / location on the right.
  */
-export function WorkTogetherPanel({ contact }: { contact: Contact }) {
+export function WorkTogetherPanel({ contact, locale }: { contact: Contact; locale: Locale }) {
   const phone = contact.contactPhone
   return (
     <section aria-label="Let's Work Together" className="border-t border-rule bg-fjord-wash">
@@ -28,7 +27,7 @@ export function WorkTogetherPanel({ contact }: { contact: Contact }) {
               For media inquiries, event coverage, and collaboration
             </p>
             <a
-              href={GET_IN_TOUCH_URL}
+              href={href(locale, '/contact')}
               className="mt-5 inline-flex items-center rounded-[6px] border border-fjord px-5 py-2.5 font-medium text-fjord transition-colors hover:bg-fjord hover:text-snow"
             >
               Get In Touch

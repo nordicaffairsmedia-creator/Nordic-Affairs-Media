@@ -42,6 +42,14 @@ const nextConfig = {
         : []),
     ],
   },
+  // Photos live in the public bucket. Old database records may still point to /api/media/file/<name>;
+  // send those straight to the bucket so the server never looks for them on its own disk (no 500s).
+  async redirects() {
+    const base = process.env.S3_PUBLIC_URL?.trim().replace(/\/$/, '')
+    return base
+      ? [{ source: '/api/media/file/:path*', destination: `${base}/:path*`, permanent: false }]
+      : []
+  },
   async headers() {
     return [
       { source: '/:path*', headers: securityHeaders },

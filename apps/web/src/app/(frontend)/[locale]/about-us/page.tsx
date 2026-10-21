@@ -28,8 +28,6 @@ import { href } from '@/lib/site'
 import { aboutFor, localizedSettings } from '@/lib/i18n-content'
 import { pressMentions as defaultPressMentions } from '@/lib/wordpress/content'
 import { MediaImage } from '@/components/ui/MediaImage'
-import { PublicationCard } from '@/components/editorial/PublicationCard'
-import { listPublications } from '@/lib/listings'
 import { bebas, inter } from '@/lib/legacy-fonts'
 import { ScrollEffects } from '@/components/motion/ScrollEffects'
 import { storiesFor, storyPhotos } from '@/lib/about-stories'
@@ -452,11 +450,9 @@ export default async function AboutPage({ params }: Props) {
   const { locale } = await params
   if (!isLocale(locale)) notFound()
   const t = getDictionary(locale)
-  const [a, { settings }, issues] = await Promise.all([
+  const [a, { settings }] = await Promise.all([
     getAbout(locale),
     getSiteChrome(locale),
-    // Every issue the team publishes in the CMS (newest first) appears in the Publications section below.
-    listPublications(locale, null, 1).then((r) => r.docs).catch(() => []),
   ])
   const defaultStats = [
     { id: '1', value: '10+', label: 'Years of Excellence' },
@@ -884,23 +880,6 @@ export default async function AboutPage({ params }: Props) {
                 </li>
               )
             })}
-          </ul>
-        </section>
-      ) : null}
-
-      {/* Publications — every published issue from the CMS */}
-      {issues.length > 0 ? (
-        <section id="publications" className="container-max scroll-mt-24 py-16 md:py-20">
-          <FormattedTwoToneTitle
-            title={t.publications}
-            className={`${heading} text-[34px] md:text-[44px] leading-tight`}
-          />
-          <ul className="mt-10 grid grid-cols-2 gap-x-6 gap-y-12 sm:grid-cols-3 lg:grid-cols-5">
-            {issues.map((p) => (
-              <li key={p.id}>
-                <PublicationCard publication={p} locale={locale} t={t} />
-              </li>
-            ))}
           </ul>
         </section>
       ) : null}

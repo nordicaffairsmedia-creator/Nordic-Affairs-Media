@@ -98,7 +98,7 @@ export default async function HomePage({ params }: Params) {
     ) : null
 
   // The landing page never lists articles: they live only under the Articles tab.
-  // It shows the slideshow and the newsletter. Publications live only on the About us page.
+  // It shows the slideshow and the newsletter. Publications are listed on the Articles page.
   if (!hero) {
     return (
       <div className="container-wide py-16">
@@ -114,7 +114,7 @@ export default async function HomePage({ params }: Params) {
       <JsonLd data={organization} />
       {pageHeading}
       {hero}
-      <WorkTogetherPanel contact={settings} />
+      <WorkTogetherPanel contact={settings} locale={locale} />
     </>
   )
 }

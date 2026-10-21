@@ -167,6 +167,14 @@ export async function listPublications(
   })
 }
 
+/** Issues for the Articles page, kept for two minutes and refreshed the moment something is published. */
+export const listPublicationsCached = (locale: Locale) =>
+  unstable_cache(
+    () => listPublications(locale, null, 1).then((r) => r.docs).catch(() => []),
+    ['publications-list', locale],
+    { tags: ['content'], revalidate: 120 },
+  )()
+
 export const getPublicationYears = cache(async () => {
   const payload = await getPayloadClient()
   const res = await payload.find({

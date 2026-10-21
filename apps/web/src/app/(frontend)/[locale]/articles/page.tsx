@@ -2,10 +2,11 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { isLocale } from '@/i18n/config'
 import { getDictionary } from '@/i18n/getDictionary'
-import { listArticlesCached, pageParam } from '@/lib/listings'
+import { listArticlesCached, listPublicationsCached, pageParam } from '@/lib/listings'
 import { buildMetadata } from '@/lib/seo'
 import { href } from '@/lib/site'
 import { StoryCard } from '@/components/editorial/StoryCard'
+import { PublicationCard } from '@/components/editorial/PublicationCard'
 import { EmptyState, PageHeader } from '@/components/ui/primitives'
 import { Pagination } from '@/components/ui/Pagination'
 
@@ -30,7 +31,10 @@ export default async function ArticlesPage({ params, searchParams }: Props) {
   if (!isLocale(locale)) notFound()
   const t = getDictionary(locale)
   const page = pageParam((await searchParams).page)
-  const result = await listArticlesCached(locale, page)
+  const [result, issues] = await Promise.all([
+    listArticlesCached(locale, page),
+    page === 1 ? listPublicationsCached(locale) : Promise.resolve([]),
+  ])
   if (page > 1 && result.docs.length === 0) notFound()
 
   return (
@@ -50,6 +54,18 @@ export default async function ArticlesPage({ params, searchParams }: Props) {
           <Pagination basePath={href(locale, '/articles')} page={page} totalPages={result.totalPages} t={t} />
         </>
       )}
+      {issues.length > 0 ? (
+        <section id="publications" className="scroll-mt-24 pt-16">
+          <h2 className="text-h2">{t.publications}</h2>
+          <ul className="mt-8 grid grid-cols-2 gap-x-6 gap-y-12 sm:grid-cols-3 lg:grid-cols-5">
+            {issues.map((p: any) => (
+              <li key={p.id}>
+                <PublicationCard publication={p} locale={locale} t={t} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   )
 }
