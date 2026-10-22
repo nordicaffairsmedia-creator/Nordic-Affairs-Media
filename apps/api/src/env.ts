@@ -35,6 +35,9 @@ const schema = z.object({
   // Optional comma list (e.g. card,klarna,swish). Leave empty to use the methods switched on in the Stripe Dashboard.
   STRIPE_PAYMENT_METHODS: z.preprocess(blank, z.string().optional()),
   STRIPE_WEBHOOK_SECRET: z.preprocess(blank, z.string().startsWith('whsec_').optional()),
+  // Publishable key (pk_...): lets the website show the Google Pay / Apple Pay sheet. Safe to expose.
+  // Without it, the Google Pay and Apple Pay buttons simply use Stripe's card page.
+  STRIPE_PUBLISHABLE_KEY: z.preprocess(blank, z.string().startsWith('pk_').optional()),
 
   // "demo" = a dummy payment page (no money moves) used while Stripe keys are not set yet.
   // Ignored as soon as STRIPE_SECRET_KEY exists. Leave unset in real production.

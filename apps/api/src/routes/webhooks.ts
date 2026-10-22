@@ -2,7 +2,7 @@ import express, { Router } from 'express'
 import type Stripe from 'stripe'
 import { releasePromoUse } from '../catalog.js'
 import { env } from '../env.js'
-import { intentId, orderIdOf, settleSession } from '../settle.js'
+import { intentId, orderIdOf, settleIntent, settleSession } from '../settle.js'
 import { orders } from '../orders.js'
 import { cancelOrderTickets } from '../cancellations.js'
 import { releaseOrderHolds } from '../stock.js'
@@ -17,7 +17,8 @@ export const webhookRouter = Router()
  *
  * In the Stripe dashboard, send these events to https://<api>/webhooks/stripe:
  * checkout.session.completed, checkout.session.async_payment_succeeded,
- * checkout.session.async_payment_failed, checkout.session.expired, charge.refunded
+ * checkout.session.async_payment_failed, checkout.session.expired, charge.refunded,
+ * payment_intent.succeeded (Google Pay / Apple Pay on the website)
  */
 webhookRouter.post(
   '/webhooks/stripe',
@@ -41,6 +42,10 @@ webhookRouter.post(
       case 'checkout.session.completed':
       case 'checkout.session.async_payment_succeeded': {
         await settleSession(event.data.object)
+        break
+      }
+      case 'payment_intent.succeeded': {
+        await settleIntent(event.data.object)
         break
       }
       case 'checkout.session.expired':

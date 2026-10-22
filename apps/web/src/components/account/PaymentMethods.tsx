@@ -1,25 +1,25 @@
 'use client'
 
 import type { ReactElement } from 'react'
-import { Applepay, Googlepay, Klarna, Mastercard, Swish, Visa } from 'react-pay-icons'
+import { Applepay, Googlepay, Klarna, Mastercard, Visa } from 'react-pay-icons'
 
 /**
  * "Accepted payment methods" buttons on the payment step. Clicking one sends the buyer straight to
  * Stripe's secure payment page (the same as Buy now), narrowed to that method when Stripe offers it.
  *
- *   method 'card'   -> Apple Pay, Google Pay, Visa, Mastercard (Stripe shows the wallet when the device supports it)
+ *   method 'card'      -> Visa, Mastercard (Stripe's card page)
+ *   method 'googlepay'  -> the Google Pay sheet opens on our page (Stripe Express Checkout)
+ *   method 'applepay'   -> the Apple Pay sheet opens on our page (Safari / iPhone)
  *   method 'klarna' -> Klarna
- *   method 'swish'  -> Swish
  *
  * The icons come from the MIT-licensed `react-pay-icons` package; the marks themselves belong to
- * Swish, Apple, Google, Visa, Mastercard and Klarna.
+ * Apple, Google, Visa, Mastercard and Klarna.
  */
-export type PayMethod = 'card' | 'klarna' | 'swish'
+export type PayMethod = 'card' | 'klarna' | 'googlepay' | 'applepay'
 
 const METHODS: { key: string; name: string; method: PayMethod; icon: ReactElement }[] = [
-  { key: 'swish', name: 'Swish', method: 'swish', icon: <Swish /> },
-  { key: 'apple-pay', name: 'Apple Pay', method: 'card', icon: <Applepay /> },
-  { key: 'google-pay', name: 'Google Pay', method: 'card', icon: <Googlepay /> },
+  { key: 'apple-pay', name: 'Apple Pay', method: 'applepay', icon: <Applepay /> },
+  { key: 'google-pay', name: 'Google Pay', method: 'googlepay', icon: <Googlepay /> },
   { key: 'visa', name: 'Visa', method: 'card', icon: <Visa /> },
   { key: 'mastercard', name: 'Mastercard', method: 'card', icon: <Mastercard /> },
   { key: 'klarna', name: 'Klarna', method: 'klarna', icon: <Klarna /> },

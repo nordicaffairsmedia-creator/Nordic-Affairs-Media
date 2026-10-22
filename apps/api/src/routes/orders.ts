@@ -12,7 +12,7 @@ import { getDb } from '../db.js'
 import { cancelOrderTickets } from '../cancellations.js'
 import { stripe } from '../stripe.js'
 import { hasInternalKey } from './internal.js'
-import { settleSession } from '../settle.js'
+import { settleIntent, settleSession } from '../settle.js'
 
 export const ordersRouter = Router()
 
@@ -71,13 +71,21 @@ const confirmLimiter = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders:
 ordersRouter.post('/orders/:ref/confirm', confirmLimiter, async (req, res) => {
   const order = await orderByToken(String(req.params.ref ?? ''), String(req.query.t ?? ''))
   if (!order) return void res.status(404).json({ error: 'not_found' })
-  if (order.status !== 'pending' || !order.stripeSessionId) return void res.json({ status: order.status })
+  if (order.status !== 'pending' || (!order.stripeSessionId && !order.stripePaymentIntentId))
+    return void res.json({ status: order.status })
   const s = stripe()
   if (!s) return void res.json({ status: order.status })
   try {
-    const session = await s.checkout.sessions.retrieve(order.stripeSessionId)
-    if (session.metadata?.orderId !== order._id) return void res.status(409).json({ error: 'mismatch' })
-    const paid = await settleSession(session)
+    let paid: boolean
+    if (order.stripeSessionId) {
+      const session = await s.checkout.sessions.retrieve(order.stripeSessionId)
+      if (session.metadata?.orderId !== order._id) return void res.status(409).json({ error: 'mismatch' })
+      paid = await settleSession(session)
+    } else {
+      const intent = await s.paymentIntents.retrieve(order.stripePaymentIntentId as string)
+      if (intent.metadata?.orderId !== order._id) return void res.status(409).json({ error: 'mismatch' })
+      paid = await settleIntent(intent)
+    }
     const fresh = await orders().findOne({ _id: order._id })
     res.json({ status: fresh?.status ?? order.status, paid })
   } catch (e) {

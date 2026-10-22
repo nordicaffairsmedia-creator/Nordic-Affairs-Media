@@ -45,3 +45,23 @@ export async function settleSession(session: Stripe.Checkout.Session): Promise<b
   await fulfilOrder(orderId, intentId(session.payment_intent))
   return true
 }
+
+/**
+ * Turns a paid PaymentIntent (Google Pay / Apple Pay on our own page) into tickets. Orders paid through
+ * Stripe's hosted Checkout page are skipped here: they are settled from the Checkout Session, which
+ * also carries the buyer's details.
+ */
+export async function settleIntent(pi: Stripe.PaymentIntent): Promise<boolean> {
+  const orderId = pi.metadata?.orderId
+  if (!orderId) return false
+  const order = await orders().findOne({ _id: orderId })
+  if (!order || order.stripeSessionId) return false
+  if (order.stripePaymentIntentId && order.stripePaymentIntentId !== pi.id) return false
+  if (pi.status !== 'succeeded') return false
+  if (pi.amount_received !== order.total) {
+    console.error(`[stripe] ${orderId}: Stripe amount ${pi.amount_received} != order ${order.total}`)
+    return false
+  }
+  await fulfilOrder(orderId, pi.id)
+  return true
+}

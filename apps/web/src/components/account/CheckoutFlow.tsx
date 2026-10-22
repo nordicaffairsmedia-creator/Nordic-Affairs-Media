@@ -8,6 +8,7 @@ import { COUNTRIES, countryName } from '@/lib/countries'
 import { readCart, saveCart } from '@/lib/cart'
 import { SeatMap, type Seating } from '@/components/account/SeatMap'
 import { PaymentMethods, type PayMethod } from '@/components/account/PaymentMethods'
+import { WalletPay, type Wallet } from '@/components/account/WalletPay'
 
 type Tier = { tierId: string; name: string; description?: string | null; price: number }
 type ServiceKey = 'smsTickets' | 'refundProtection' | 'reminder'
@@ -106,6 +107,7 @@ export function CheckoutFlow({
     reminder: false,
   })
   const [busy, setBusy] = useState(false)
+  const [wallet, setWallet] = useState<{ method: Wallet; clientSecret: string; publishableKey: string; returnUrl: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [expiresAt, setExpiresAt] = useState<number | null>(null)
@@ -364,6 +366,18 @@ export function CheckoutFlow({
   }
 
   async function buyNow(method?: PayMethod) {
+    // Apple Pay only exists in Safari with a card in Wallet. Check first, so no tickets are held for nothing.
+    if (
+      method === 'applepay' &&
+      !(typeof window !== 'undefined' && (window as unknown as { ApplePaySession?: { canMakePayments(): boolean } }).ApplePaySession?.canMakePayments())
+    ) {
+      setError(
+        locale === 'sv'
+          ? 'Apple Pay finns i Safari på iPhone, iPad och Mac med ett kort i Wallet. Välj en annan betalningsmetod.'
+          : 'Apple Pay is available in Safari on iPhone, iPad and Mac with a card in Wallet. Please choose another payment method.',
+      )
+      return
+    }
     setBusy(true)
     setError(null)
     try {
@@ -390,7 +404,19 @@ export function CheckoutFlow({
           ...(seated ? { seats: seatSel } : {}),
         }),
       })
-      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; seats?: string[]; seat?: string }
+      const data = (await res.json().catch(() => ({}))) as {
+        url?: string
+        error?: string
+        seats?: string[]
+        seat?: string
+        wallet?: { clientSecret: string; publishableKey: string }
+      }
+      if (res.ok && data.url && data.wallet && (method === 'googlepay' || method === 'applepay')) {
+        // The wallet sheet opens on this page; paying sends the buyer to the confirmation page.
+        setWallet({ method, ...data.wallet, returnUrl: checkoutDestination(data.url) })
+        setBusy(false)
+        return
+      }
       if (res.ok && data.url) {
         window.location.assign(checkoutDestination(data.url))
         return
@@ -478,6 +504,16 @@ export function CheckoutFlow({
 
   return (
     <div aria-busy={busy}>
+      {wallet ? (
+        <WalletPay
+          wallet={wallet.method}
+          clientSecret={wallet.clientSecret}
+          publishableKey={wallet.publishableKey}
+          returnUrl={wallet.returnUrl}
+          locale={locale}
+          onClose={() => setWallet(null)}
+        />
+      ) : null}
       {/* Stepper */}
       <ol className="mb-8 flex items-start justify-between gap-2" aria-label="Checkout steps">
         {stepList.map((s, i) => (

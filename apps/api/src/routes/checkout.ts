@@ -86,7 +86,7 @@ const body = z.object({
     .optional(),
   webOrigin: z.string().trim().max(200).optional(),
   // Which payment button the buyer clicked. Only narrows Stripe's page to that method; falls back to all methods if Stripe can't.
-  paymentMethod: z.enum(['card', 'klarna', 'swish']).optional(),
+  paymentMethod: z.enum(['card', 'klarna', 'swish', 'googlepay', 'applepay']).optional(),
   acceptTerms: z.literal(true),
   // Set by the My Booking hub so an abandoned payment returns there. Absent = Events page.
   returnTo: z.enum(['account']).optional(),
@@ -294,7 +294,7 @@ async function createOrder(args: {
   services: ReturnType<typeof priceServices>
   seatItems: SeatItem[]
   claim: string
-}): Promise<{ ref: string; url: string } | Fail> {
+}): Promise<{ ref: string; url: string; wallet?: { clientSecret: string; publishableKey: string } } | Fail> {
   const { input, event, items, totals, promo, settings, eventId, services, seatItems, claim } = args
   if (promo && !(await claimPromoUse(promo))) return fail(400, 'invalid_promo')
 
@@ -358,6 +358,26 @@ async function createOrder(args: {
   if (!s) return fail(503, 'payments_unavailable')
 
   try {
+    // Google Pay / Apple Pay: the wallet sheet opens on our own page (Stripe Express Checkout), so we create
+    // a PaymentIntent for the exact order total instead of a hosted Checkout page. Without the publishable
+    // key we fall back to Stripe's card page, which shows the wallet button itself.
+    if ((input.paymentMethod === 'googlepay' || input.paymentMethod === 'applepay') && env.STRIPE_PUBLISHABLE_KEY) {
+      const intent = await s.paymentIntents.create({
+        amount: order.total,
+        currency: order.currency.toLowerCase(),
+        payment_method_types: ['card'],
+        ...(order.email ? { receipt_email: order.email } : {}),
+        description: `${order.eventTitleEn} (${order._id})`,
+        metadata: { orderId: order._id },
+      })
+      if (!intent.client_secret) throw new Error('Stripe returned no client secret')
+      await orders().updateOne({ _id: order._id }, { $set: { stripePaymentIntentId: intent.id } })
+      return {
+        ref: order._id,
+        url: orderLink(order),
+        wallet: { clientSecret: intent.client_secret, publishableKey: env.STRIPE_PUBLISHABLE_KEY },
+      }
+    }
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map((i) => ({
       quantity: i.quantity,
       price_data: {
@@ -429,7 +449,8 @@ async function createOrder(args: {
       }/${order.eventSlug}?checkout=cancelled#tickets`,
     }
     const forced = paymentMethodTypes()
-    const chosen = input.paymentMethod
+    // Wallet buttons that could not use the on-page sheet use Stripe's card page.
+    const chosen = input.paymentMethod === 'googlepay' || input.paymentMethod === 'applepay' ? 'card' : input.paymentMethod
     let session: Stripe.Checkout.Session
     if (forced) {
       session = await s.checkout.sessions.create({ ...params, payment_method_types: forced })

@@ -93,6 +93,8 @@ services:
         sync: false # sk_test_… while testing
       - key: STRIPE_WEBHOOK_SECRET
         sync: false # whsec_… from the Stripe webhook endpoint
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false # pk_test_… / pk_live_… (shows the Google Pay / Apple Pay sheet on the website)
       - key: RESEND_API_KEY
         sync: false
       - key: EMAIL_FROM
