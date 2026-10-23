@@ -91,8 +91,12 @@ function Sheet({ wallet, clientSecret, returnUrl, locale, onClose, onFallback }:
           options={{
             buttonHeight: 48,
             paymentMethods: {
-              googlePay: wallet === 'googlepay' ? 'auto' : 'never',
-              applePay: wallet === 'applepay' ? 'auto' : 'never',
+              // 'always' shows the wallet button on every supported browser (Chrome for Google Pay, Safari for
+              // Apple Pay), even when no card is saved in the wallet yet: the wallet sheet then lets the buyer
+              // add one. With 'auto' Stripe hides the button unless a card is already saved, which is what
+              // showed "not available on this device" on phones and desktops without a saved wallet card.
+              googlePay: wallet === 'googlepay' ? 'always' : 'never',
+              applePay: wallet === 'applepay' ? 'always' : 'never',
               link: 'never',
               amazonPay: 'never',
               paypal: 'never',
