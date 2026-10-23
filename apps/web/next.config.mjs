@@ -22,6 +22,35 @@ const publicUrl =
   process.env.RENDER_EXTERNAL_URL
 const ownHost = publicUrl ? new URL(publicUrl) : null
 
+/**
+ * One public address only. On go-live night set CANONICAL_HOST=nordicaffairsmedia.com on Vercel and
+ * redeploy: every visit to the old test addresses (the vercel.app address, www.) is then sent to the
+ * same page on nordicaffairsmedia.com with a permanent (308) redirect, so Google lists only that
+ * address. Leave CANONICAL_HOST empty until the domain points here, or the site would send visitors
+ * to an address that does not work yet. /api stays reachable on every address (the booking server,
+ * Stripe and the admin's own calls are never redirected).
+ * Extra hosts to send over: REDIRECT_HOSTS=a.example.com,b.example.com
+ */
+function canonicalRedirects() {
+  const target = process.env.CANONICAL_HOST?.trim().toLowerCase()
+  if (!target) return []
+  const hosts = new Set(
+    [
+      'frontend-nordic-affairs-media.vercel.app',
+      `www.${target}`,
+      ...(process.env.REDIRECT_HOSTS ?? '').split(','),
+    ]
+      .map((h) => h.trim().toLowerCase())
+      .filter((h) => h && h !== target),
+  )
+  return [...hosts].map((host) => ({
+    source: '/:path((?!api/).*)',
+    has: [{ type: /** @type {'host'} */ ('host'), value: host.replace(/\./g, '\\.') }],
+    destination: `https://${target}/:path`,
+    permanent: true,
+  }))
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
@@ -46,9 +75,10 @@ const nextConfig = {
   // send those straight to the bucket so the server never looks for them on its own disk (no 500s).
   async redirects() {
     const base = process.env.S3_PUBLIC_URL?.trim().replace(/\/$/, '')
-    return base
+    const media = base
       ? [{ source: '/api/media/file/:path*', destination: `${base}/:path*`, permanent: false }]
       : []
+    return [...canonicalRedirects(), ...media]
   },
   async headers() {
     return [
