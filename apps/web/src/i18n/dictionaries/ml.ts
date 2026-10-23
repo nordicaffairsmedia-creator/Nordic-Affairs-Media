@@ -143,6 +143,8 @@ export const ml: Dictionary = {
   hubAvailError: 'ബുക്കിംഗ് സേവനത്തിൽ എത്താനായില്ല. അത് ഉണരുകയായിരിക്കാം — വീണ്ടും ശ്രമിക്കുക.',
   hubRetry: 'വീണ്ടും ശ്രമിക്കുക',
   hubNotOnSale: 'വിൽപ്പനയിലില്ല',
+  tierOpensOn: 'വിൽപ്പന ആരംഭിക്കുന്നത്:',
+  venueTba: 'വേദി ഉടൻ പ്രഖ്യാപിക്കും',
   hubGetTickets: 'ടിക്കറ്റുകൾ വാങ്ങുക',
   hubFrom: 'തുടക്കം',
   hubFree: 'സൗജന്യം',

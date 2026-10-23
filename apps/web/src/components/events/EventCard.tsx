@@ -4,7 +4,7 @@ import type { Locale } from '@/i18n/config'
 import type { Dictionary } from '@/i18n/dictionaries/en'
 import { isDoc } from '@/lib/payload'
 import { formatEventDate, formatPrice } from '@/lib/format'
-import { lowestPrice, ticketState } from '@/lib/tickets'
+import { lowestPrice, ticketState, tierOnSale } from '@/lib/tickets'
 import { href, routes } from '@/lib/site'
 import { MediaImage } from '@/components/ui/MediaImage'
 import { PlaceholderBadge } from '@/components/ui/PlaceholderBadge'
@@ -23,7 +23,9 @@ export function EventCard({
 }) {
   const date = formatEventDate(event.startsAt, locale)
   const venue = isDoc(event.venue) ? event.venue : null
-  const from = lowestPrice(event)
+  const openPrices = (event.tiers ?? []).filter((x) => tierOnSale(x)).map((x) => x.price)
+  const from = openPrices.length ? Math.min(...openPrices) : lowestPrice(event)
+  const where = [venue?.name, venue?.city].filter(Boolean).join(', ')
   const state = ticketState(event)
 
   return (
@@ -47,12 +49,14 @@ export function EventCard({
         </h3>
         <p className="meta mt-2">
           {event.startsAt ? <time dateTime={event.startsAt}>{date.full}</time> : date.full}
-          {venue ? ` · ${venue.name}, ${venue.city}` : ''}
+          {where ? ` · ${where}` : ` · ${t.venueTba}`}
         </p>
         {!muted ? (
           <p className="mt-3 font-ui text-caption font-semibold text-fjord">
             {state === 'onSale' && from !== null
-              ? `${t.from} ${formatPrice(from, event.currency, locale)}`
+              ? from === 0
+                ? t.hubFree
+                : `${t.from} ${formatPrice(from, event.currency, locale)}`
               : t[state]}
           </p>
         ) : null}

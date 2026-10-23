@@ -143,6 +143,8 @@ export const sv: Dictionary = {
   hubAvailError: 'Vi nådde inte bokningstjänsten. Den kanske startar — försök igen.',
   hubRetry: 'Försök igen',
   hubNotOnSale: 'Inte till salu',
+  tierOpensOn: 'Till salu från',
+  venueTba: 'Plats meddelas senare',
   hubGetTickets: 'Köp biljetter',
   hubFrom: 'Från',
   hubFree: 'Gratis',

@@ -512,6 +512,10 @@ export function CheckoutFlow({
           returnUrl={wallet.returnUrl}
           locale={locale}
           onClose={() => setWallet(null)}
+          onFallback={() => {
+            setWallet(null)
+            void buyNow('card')
+          }}
         />
       ) : null}
       {/* Stepper */}

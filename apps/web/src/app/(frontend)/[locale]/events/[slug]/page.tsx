@@ -7,7 +7,7 @@ import { isLocale, localeMeta } from '@/i18n/config'
 import { getDictionary } from '@/i18n/getDictionary'
 import { getEventBySlug } from '@/lib/queries'
 import { isDoc } from '@/lib/payload'
-import { formatEventDate, formatPrice, intlLocales } from '@/lib/format'
+import { formatDate, formatEventDate, formatPrice, intlLocales } from '@/lib/format'
 import { salesStatusKey, ticketBlock, ticketState, tierOnSale } from '@/lib/tickets'
 import { bookingApiUrl } from '@/lib/booking'
 import { href, routes, siteUrl } from '@/lib/site'
@@ -137,7 +137,15 @@ export default async function HubEventPage({ params }: Props) {
                             {tier.price === 0 ? t.hubFree : formatPrice(tier.price, event.currency, locale)}
                           </p>
                           <p className={`meta ${available ? '' : 'text-alert'}`}>
-                            {available ? t.incVat : state === 'onSale' ? t.soldOut : t[state]}
+                            {available
+                              ? t.incVat
+                              : state !== 'onSale'
+                                ? t[state]
+                                : tier.salesStart && new Date(tier.salesStart) > new Date()
+                                  ? `${t.tierOpensOn} ${formatDate(tier.salesStart, locale)}`
+                                  : tier.salesEnd && new Date(tier.salesEnd) < new Date()
+                                    ? t.salesEnded
+                                    : t.soldOut}
                           </p>
                         </div>
                       </li>
@@ -179,15 +187,19 @@ export default async function HubEventPage({ params }: Props) {
             </div>
           </section>
           <dl className="mt-6 space-y-5 border border-rule bg-snow p-5 sm:p-6">
-            {venue || place ? (
-              <div>
-                <dt className="font-ui text-caption font-semibold">{t.hubLocation}</dt>
-                <dd className="mt-2 font-ui text-body text-charcoal">
-                  <span className="block">{place?.name || venue?.name}</span>
-                  <span className="block whitespace-pre-line">{place?.address || venue?.address || venue?.city}</span>
-                </dd>
-              </div>
-            ) : null}
+            <div>
+              <dt className="font-ui text-caption font-semibold">{t.hubLocation}</dt>
+              <dd className="mt-2 font-ui text-body text-charcoal">
+                {venue || place ? (
+                  <>
+                    <span className="block">{place?.name || venue?.name}</span>
+                    <span className="block whitespace-pre-line">{place?.address || venue?.address || venue?.city}</span>
+                  </>
+                ) : (
+                  t.venueTba
+                )}
+              </dd>
+            </div>
             <div className="border-t border-rule pt-5">
               <dt className="font-ui text-caption font-semibold">{t.date}</dt>
               <dd className="mt-2 font-ui text-body text-charcoal">

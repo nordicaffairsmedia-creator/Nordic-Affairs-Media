@@ -141,6 +141,8 @@ export const en = {
   hubAvailError: 'We could not reach the booking service. It may be waking up — please try again.',
   hubRetry: 'Try again',
   hubNotOnSale: 'Not on sale',
+  tierOpensOn: 'On sale from',
+  venueTba: 'Venue to be announced',
   hubGetTickets: 'Get tickets',
   hubFrom: 'From',
   hubFree: 'Free',

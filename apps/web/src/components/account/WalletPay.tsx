@@ -18,8 +18,9 @@ const TEXT = {
     loading: 'Opening the secure payment…',
     paying: 'Processing your payment…',
     unavailable:
-      'This payment method is not available on this device or browser. Please close this window and choose another payment method.',
+      'This wallet is not available on this device or browser. You can continue on the secure Stripe page instead.',
     close: 'Close',
+    fallback: 'Continue on the secure payment page',
     failed: 'The payment did not go through. Please try again or choose another payment method.',
   },
   sv: {
@@ -28,8 +29,9 @@ const TEXT = {
     loading: 'Öppnar den säkra betalningen…',
     paying: 'Din betalning behandlas…',
     unavailable:
-      'Den här betalningsmetoden finns inte på den här enheten eller webbläsaren. Stäng fönstret och välj en annan betalningsmetod.',
+      'Den här plånboken finns inte på den här enheten eller webbläsaren. Du kan fortsätta på den säkra betalsidan i stället.',
     close: 'Stäng',
+    fallback: 'Fortsätt på den säkra betalsidan',
     failed: 'Betalningen gick inte igenom. Försök igen eller välj en annan betalningsmetod.',
   },
 } as const
@@ -41,9 +43,10 @@ type Props = {
   returnUrl: string
   locale: string
   onClose: () => void
+  onFallback?: () => void
 }
 
-function Sheet({ wallet, clientSecret, returnUrl, locale, onClose }: Omit<Props, 'publishableKey'>) {
+function Sheet({ wallet, clientSecret, returnUrl, locale, onClose, onFallback }: Omit<Props, 'publishableKey'>) {
   const t = locale === 'sv' ? TEXT.sv : TEXT.en
   const stripe = useStripe()
   const elements = useElements()
@@ -75,6 +78,7 @@ function Sheet({ wallet, clientSecret, returnUrl, locale, onClose }: Omit<Props,
       {state === 'loading' ? <p className="meta">{t.loading}</p> : null}
       {state === 'paying' ? <p className="meta">{t.paying}</p> : null}
       {state === 'unavailable' ? <p role="alert" className="font-ui text-caption text-alert">{t.unavailable}</p> : null}
+      {state === 'unavailable' && onFallback ? <button type="button" className="btn btn-primary" onClick={onFallback}>{t.fallback}</button> : null}
       {error ? <p role="alert" className="font-ui text-caption text-alert">{error}</p> : null}
       <div className={state === 'unavailable' ? 'hidden' : state === 'paying' ? 'pointer-events-none opacity-60' : ''}>
         <ExpressCheckoutElement
