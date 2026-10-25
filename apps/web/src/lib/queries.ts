@@ -30,6 +30,25 @@ export const getSiteChrome = cache((locale: Locale) => unstable_cache(async () =
   return { navigation, settings: localizedSettings(settings, locale) }
 }, ['site-chrome', locale], CACHE)())
 
+/**
+ * The website's background music: the track the admin ticked "Play on the website" in Background music
+ * (the newest one if several are ticked). null = no music: the player and its button are not shown.
+ */
+export const getBackgroundMusic = cache(() => unstable_cache(async (): Promise<{ url: string; version: string } | null> => {
+  const payload = await getPayloadClient()
+  const result = await payload.find({
+    collection: 'music',
+    where: { active: { equals: true } },
+    sort: '-updatedAt',
+    limit: 1,
+    depth: 0,
+    ...PUBLIC,
+  })
+  const track = result.docs[0]
+  if (!track?.url) return null
+  return { url: track.url, version: String(track.updatedAt ?? '') }
+}, ['background-music'], CACHE)())
+
 export const getLatestArticles = cache(
   async (locale: Locale, limit = 8, excludeIds: string[] = []): Promise<Article[]> => {
     const payload = await getPayloadClient()

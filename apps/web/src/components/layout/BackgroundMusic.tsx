@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 
 /**
  * Continuous Background Music Player
- * Plays /music.mp3 in a continuous loop across all pages.
+ * Plays the track chosen in the admin (Background music) in a continuous loop across all pages.
  * Handles modern browser autoplay policies (Chrome, Safari, iOS, Android):
  * 1. Attempts immediate unmuted playback on link entry.
  * 2. If unmuted autoplay is blocked by browser policy, immediately starts playing muted
@@ -14,7 +14,7 @@ import { usePathname } from 'next/navigation'
  *    to instantly unmute and continue playback seamlessly with zero delay.
  * 4. Listens across route transitions and tab visibility changes.
  */
-function BackgroundMusicPlayer() {
+function BackgroundMusicPlayer({ src }: { src: string }) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const isUnlockedRef = useRef<boolean>(false)
   const pathname = usePathname()
@@ -209,7 +209,7 @@ function BackgroundMusicPlayer() {
     <>
     <audio
       ref={audioRef}
-      src="/music.mp3"
+      src={src}
       loop
       preload="auto"
       playsInline
@@ -270,7 +270,7 @@ function BackgroundMusicPlayer() {
  * photos and text the visitor came for. It now waits until the page has finished loading
  * (plus a moment), then behaves exactly as before.
  */
-export function BackgroundMusic() {
+export function BackgroundMusic({ src }: { src: string }) {
   const [ready, setReady] = useState(false)
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -284,5 +284,6 @@ export function BackgroundMusic() {
       if (timer) clearTimeout(timer)
     }
   }, [])
-  return ready ? <BackgroundMusicPlayer /> : null
+  // key: a different track starts a fresh player.
+  return ready ? <BackgroundMusicPlayer key={src} src={src} /> : null
 }

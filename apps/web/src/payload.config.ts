@@ -11,6 +11,7 @@ import { Users } from './collections/Users'
 import { Media } from './collections/Media'
 import { Documents } from './collections/Documents'
 import { Videos } from './collections/Videos'
+import { Music } from './collections/Music'
 import { Categories, EventCategories, Tags, Venues } from './collections/Taxonomy'
 import { Authors } from './collections/Authors'
 import { Articles } from './collections/Articles'
@@ -138,6 +139,8 @@ const plugins: Plugin[] = process.env.S3_BUCKET
           media: publicFiles,
           documents: true,
           videos: publicFiles,
+          // Background music: public too, so every visitor's browser loads it straight from Cloudflare.
+          music: publicFiles,
         },
         bucket: process.env.S3_BUCKET,
         // Vercel refuses request bodies over 4.5 MB, so there the admin uploads photos and
@@ -238,6 +241,7 @@ export default buildConfig({
     Media,
     Videos,
     Documents,
+    Music,
     Events,
     PromoCodes,
     Venues,

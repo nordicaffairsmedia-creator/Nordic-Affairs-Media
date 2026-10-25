@@ -11,7 +11,7 @@ import {
 } from 'next/font/google'
 import { isLocale, localeMeta, locales, type Locale } from '@/i18n/config'
 import { getDictionary } from '@/i18n/getDictionary'
-import { getSiteChrome, getGalleryMenu } from '@/lib/queries'
+import { getSiteChrome, getGalleryMenu, getBackgroundMusic } from '@/lib/queries'
 import { href, siteUrl } from '@/lib/site'
 import { SiteHeader } from '@/components/layout/SiteHeader'
 import { themeBootScript } from '@/lib/theme'
@@ -119,9 +119,11 @@ export default async function LocaleLayout({
   if (!isLocale(locale)) notFound()
 
   const t = getDictionary(locale)
-  const [{ navigation, settings }, galleries] = await Promise.all([
+  const [{ navigation, settings }, galleries, music] = await Promise.all([
     getSiteChrome(locale),
     getGalleryMenu(locale).catch(() => []),
+    // The track ticked in the admin (Background music). No track = no music and no Play button.
+    getBackgroundMusic().catch(() => null),
   ])
 
   return (
@@ -163,11 +165,16 @@ export default async function LocaleLayout({
           }}
         />
         <ChatWidget locale={locale} labels={chatLabels(t)} whatsappHref={whatsappUrl(settings.whatsapp, t.whatsappMessage)} />
-        <BackgroundMusic />
+        {music ? <BackgroundMusic src={withVersion(music.url, music.version)} /> : null}
         <Tracker />
       </body>
     </html>
   )
+}
+
+/** A replaced audio file keeps its address: the changed time in the link makes browsers fetch the new one. */
+function withVersion(url: string, version: string): string {
+  return version ? `${url}${url.includes('?') ? '&' : '?'}v=${encodeURIComponent(version)}` : url
 }
 
 const CHAT_KEYS = [
