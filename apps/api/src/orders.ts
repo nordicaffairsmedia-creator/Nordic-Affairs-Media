@@ -44,6 +44,7 @@ export type Order = {
   trackingSource?: string
   /** Set when the "left the checkout" reminder email was sent (once per order). */
   abandonedReminderSentAt?: Date
+  abandonedAttempts?: number
   reminderSentAt?: Date
   currency: string
   items: OrderItem[]

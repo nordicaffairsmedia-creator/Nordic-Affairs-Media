@@ -17,7 +17,10 @@ import { orders, type Order } from './orders.js'
 
 type Doc = Record<string, unknown>
 
-export type AbandonedSettings = { enabled: boolean; waitHours: number; discountCode: string }
+export type AbandonedCustom = { subject: string; message: string; button: string }
+export type AbandonedSettings = { enabled: boolean; waitHours: number; discountCode: string; custom: { en: AbandonedCustom; sv: AbandonedCustom } }
+
+const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
 
 export async function abandonedSettings(): Promise<AbandonedSettings> {
   const doc = await getDb().collection<Doc>('globals').findOne({ globalType: 'marketing-automations' })
@@ -28,6 +31,10 @@ export async function abandonedSettings(): Promise<AbandonedSettings> {
     enabled: a.enabled === true,
     waitHours: wait,
     discountCode: typeof a.discountCode === 'string' ? a.discountCode.trim().toUpperCase() : '',
+    custom: {
+      en: { subject: str(a.subjectEn), message: str(a.messageEn), button: str(a.buttonEn) },
+      sv: { subject: str(a.subjectSv), message: str(a.messageSv), button: str(a.buttonSv) },
+    },
   }
 }
 
@@ -37,34 +44,56 @@ export const unsubscribeSig = (email: string) =>
 
 const text = {
   en: {
-    subject: (t: string) => `Your tickets for ${t} are waiting`,
-    hello: (n: string) => (n ? `Hi ${n},` : 'Hi,'),
-    body: (t: string) => `You picked tickets for ${t} but did not finish your order. They are not held for you anymore, so come back soon to be sure of your seats.`,
-    code: (c: string) => `Use the code ${c} at checkout.`,
+    subject: 'Your tickets for {event} are waiting',
+    message: 'Hi {name},\n\nYou picked tickets for {event} but did not finish your order. They are not held for you anymore, so come back soon to be sure of your seats.',
     button: 'Back to the tickets',
+    code: 'Use the code {code} at checkout.',
     why: 'You get this one email because you said yes to news from us when you started your order.',
     stop: 'Stop these emails',
   },
   sv: {
-    subject: (t: string) => `Dina biljetter till ${t} väntar`,
-    hello: (n: string) => (n ? `Hej ${n},` : 'Hej,'),
-    body: (t: string) => `Du valde biljetter till ${t} men slutförde inte din beställning. Biljetterna hålls inte längre åt dig, så kom tillbaka snart för att försäkra dig om dina platser.`,
-    code: (c: string) => `Använd koden ${c} i kassan.`,
+    subject: 'Dina biljetter till {event} väntar',
+    message: 'Hej {name},\n\nDu valde biljetter till {event} men slutförde inte din beställning. Biljetterna hålls inte längre åt dig, så kom tillbaka snart för att försäkra dig om dina platser.',
     button: 'Tillbaka till biljetterna',
+    code: 'Använd koden {code} i kassan.',
     why: 'Du får det här enda mejlet eftersom du tackade ja till nyheter från oss när du påbörjade din beställning.',
     stop: 'Sluta få dessa mejl',
   },
 } as const
 
+/** {name} = first name, {event} = event title, {code} = discount code. Same rules as the website preview (apps/web/src/lib/abandonedEmail.ts). */
+const fill = (s: string, v: { name: string; event: string; code: string }) =>
+  s
+    .replace(v.name ? /\{name\}/g : /\s*\{name\}/g, v.name)
+    .replace(/\{event\}/g, v.event)
+    .replace(/\{code\}/g, v.code)
+
+let sweeping = false
+const pause = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/**
+ * Sends the reminder to every buyer who qualifies (up to 200 per run, one run every 5 minutes), paced to stay under
+ * the email provider's rate limit. An email that fails is tried again on the next runs, up to 3 times, then given up.
+ */
 export async function sweepAbandonedCheckouts(now = new Date()): Promise<number> {
-  if (!env.RESEND_API_KEY) return 0
+  if (!env.RESEND_API_KEY || sweeping) return 0
+  sweeping = true
+  try {
+    return await sweepOnce(now)
+  } finally {
+    sweeping = false
+  }
+}
+
+async function sweepOnce(now: Date): Promise<number> {
   const cfg = await abandonedSettings()
   if (!cfg.enabled) return 0
   const db = getDb()
   const notBefore = new Date(now.getTime() - 90 * 86400_000)
   const waited = new Date(now.getTime() - cfg.waitHours * 3600_000)
   let sent = 0
-  for (let guard = 0; guard < 50; guard++) {
+  const failedNow: Order['_id'][] = []
+  for (let guard = 0; guard < 200; guard++) {
     // Claim one order at a time (so it is emailed at most once, even if two sweeps overlap).
     const order: Order | null = await orders().findOneAndUpdate(
       {
@@ -72,6 +101,8 @@ export async function sweepAbandonedCheckouts(now = new Date()): Promise<number>
         'consent.marketing': true,
         email: { $regex: /@/ },
         abandonedReminderSentAt: { $exists: false },
+        abandonedAttempts: { $not: { $gte: 3 } },
+        _id: { $nin: failedNow },
         createdAt: { $gte: notBefore, $lte: waited },
         eventStartsAt: { $gt: now },
         source: { $in: ['online', undefined as never] },
@@ -105,19 +136,33 @@ export async function sweepAbandonedCheckouts(now = new Date()): Promise<number>
     if (cfg.discountCode) url.searchParams.set('promo', cfg.discountCode)
     const stop = `${origin}/api/marketing/unsubscribe?e=${encodeURIComponent(email)}&s=${unsubscribeSig(email)}`
     const first = order.name.trim().split(/\s+/)[0] ?? ''
-    const intro = `${t.hello(first)}\n\n${t.body(order.eventTitle)}${cfg.discountCode ? `\n\n${t.code(cfg.discountCode)}` : ''}`
+    const c = cfg.custom[lang]
+    const vars = { name: first, event: order.eventTitle, code: cfg.discountCode }
+    let paras = (c.message || t.message).replace(/\r\n/g, '\n').split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)
+    if (!cfg.discountCode) paras = paras.filter((p) => !p.includes('{code}'))
+    else if (!paras.some((p) => p.includes('{code}'))) paras.push(t.code)
+    const intro = paras.map((p) => fill(p, vars)).join('\n\n')
+    const subject = fill(c.subject || t.subject, vars).replace(/\s+/g, ' ')
+    const button = c.button || t.button
 
     const ok = await sendEmail({
       to: order.email,
-      subject: t.subject(order.eventTitle),
-      text: `${intro}\n\n${t.button}: ${url}\n\n${t.why}\n${t.stop}: ${stop}`,
+      subject,
+      text: `${intro}\n\n${button}: ${url}\n\n${t.why}\n${t.stop}: ${stop}`,
       html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a">${intro
         .split('\n\n')
-        .map((p) => `<p style="line-height:1.55">${esc(p)}</p>`)
-        .join('')}<p style="margin:24px 0"><a href="${esc(url.toString())}" style="background:#0b2447;color:#fff;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:600;display:inline-block">${esc(t.button)}</a></p><p style="font-size:12px;color:#666">${esc(t.why)}<br><a href="${esc(stop)}" style="color:#666">${esc(t.stop)}</a></p></div>`,
+        .map((p) => `<p style="line-height:1.55">${esc(p).replace(/\n/g, '<br>')}</p>`)
+        .join('')}<p style="margin:24px 0"><a href="${esc(url.toString())}" style="background:#0b2447;color:#fff;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:600;display:inline-block">${esc(button)}</a></p><p style="font-size:12px;color:#666">${esc(t.why)}<br><a href="${esc(stop)}" style="color:#666">${esc(t.stop)}</a></p></div>`,
     }).catch(() => false)
-    if (ok) sent++
-    else console.error(`[abandoned] ${order._id}: email not sent`)
+    if (ok) {
+      sent++
+      await pause(600)
+    } else {
+      // Not sent: give the order back so a later run tries again (max 3 tries).
+      failedNow.push(order._id)
+      await orders().updateOne({ _id: order._id }, { $unset: { abandonedReminderSentAt: '' }, $inc: { abandonedAttempts: 1 } })
+      console.error(`[abandoned] ${order._id}: email not sent (try ${(order.abandonedAttempts ?? 0) + 1} of 3)`)
+    }
   }
   return sent
 }
