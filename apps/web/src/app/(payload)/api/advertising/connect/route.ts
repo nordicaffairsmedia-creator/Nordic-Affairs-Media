@@ -19,7 +19,13 @@ export async function GET(req: Request) {
   url.searchParams.set('client_id', process.env.META_APP_ID!)
   url.searchParams.set('redirect_uri', oauthRedirectUri(siteUrl))
   url.searchParams.set('state', state)
-  url.searchParams.set('scope', SCOPES)
+  // "Facebook Login for Business" apps sign in with a saved configuration (META_LOGIN_CONFIG_ID) instead of a list of permissions.
+  const config = (process.env.META_LOGIN_CONFIG_ID ?? '').trim()
+  if (config) {
+    url.searchParams.set('config_id', config)
+    url.searchParams.set('response_type', 'code')
+    url.searchParams.set('override_default_response_type', 'true')
+  } else url.searchParams.set('scope', SCOPES)
   const res = NextResponse.redirect(url)
   res.cookies.set('nam_meta_state', state, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 600 })
   return res
