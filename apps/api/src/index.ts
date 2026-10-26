@@ -12,6 +12,7 @@ import { assistantRouter } from './routes/assistant.js'
 import { promoRouter } from './routes/promo.js'
 import { demoRouter } from './demo.js'
 import { sweepReminders } from './reminders.js'
+import { sweepAbandonedCheckouts } from './abandoned.js'
 
 /**
  * Booking API (PRD v1.1).
@@ -111,6 +112,11 @@ const reminders = setInterval(() => {
   sweepReminders().catch((e: unknown) => console.error('[reminders]', e))
 }, 5 * 60_000)
 
+// "Left the checkout" reminder emails (Marketing center → Marketing settings). Off until switched on there.
+const abandoned = setInterval(() => {
+  sweepAbandonedCheckouts().catch((e: unknown) => console.error('[abandoned]', e))
+}, 5 * 60_000)
+
 const server = app.listen(env.PORT, () => {
   console.log(`Booking API listening on :${env.PORT} (web: ${env.WEB_URL})`)
 })
@@ -119,6 +125,7 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
     clearInterval(sweeper)
     clearInterval(reminders)
+    clearInterval(abandoned)
     server.close(() => {
       void disconnect().then(() => process.exit(0))
     })

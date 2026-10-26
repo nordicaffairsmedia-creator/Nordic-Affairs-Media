@@ -29,7 +29,11 @@ import { MediaListUpload as MediaListUpload_3288621a541b25278480fe069bc10c89 } f
 import { VideosListUpload as VideosListUpload_3288621a541b25278480fe069bc10c89 } from '../../../components/admin/FastUploadBanner'
 import { DocumentsListUpload as DocumentsListUpload_3288621a541b25278480fe069bc10c89 } from '../../../components/admin/FastUploadBanner'
 import { EventMapPicker as EventMapPicker_3da6aa2b0f9f1bf99e6b0ff1a6947281 } from '../../../components/admin/EventMapPicker'
+import { CampaignSend as CampaignSend_0baf36a0e8ed39e20877086d678360ba } from '../../../components/admin/CampaignSend'
+import { AdActions as AdActions_b9ccfdf3fb7e1ca305570811130cd50d } from '../../../components/admin/AdActions'
 import { AccountActions as AccountActions_b564369a058367a481e030d85bf60b21 } from '../../../components/admin/AccountActions'
+import { AbandonedStats as AbandonedStats_94f229b864dea8aa5a1c0fc91ddd488b } from '../../../components/admin/AbandonedStats'
+import { AdsConnect as AdsConnect_1e939b69323a51a7a0c8ff4fa9380258 } from '../../../components/admin/AdsConnect'
 import { Icon as Icon_81fda60f3e3709e861f40982a767707d } from '../../../components/admin/Brand'
 import { Logo as Logo_81fda60f3e3709e861f40982a767707d } from '../../../components/admin/Brand'
 import { HeaderTools as HeaderTools_9414d29c2c9756e59a8d46abe37d7bbd } from '../../../components/admin/HeaderTools'
@@ -39,7 +43,6 @@ import { Welcome as Welcome_72e830871eb26c77002633e2e2cc9dea } from '../../../co
 import { NavTidy as NavTidy_301393646d0ca86be08d412869e8d7a9 } from '../../../components/admin/NavTidy'
 import { PasswordReveal as PasswordReveal_655eb28e21bff48b103452f82d4670db } from '../../../components/admin/PasswordReveal'
 import { BigUploadHandler as BigUploadHandler_709305bcfea441d8e4909a4e42231ade } from '../../../components/admin/BigUploadHandler'
-import { S3ClientUploadHandler as S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24 } from '@payloadcms/storage-s3/client'
 import { Dashboard as Dashboard_16b88e9b8c48e393fa86591406efd08f } from '../../../components/admin/Dashboard'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 
@@ -76,7 +79,11 @@ export const importMap = {
   "/components/admin/FastUploadBanner#VideosListUpload": VideosListUpload_3288621a541b25278480fe069bc10c89,
   "/components/admin/FastUploadBanner#DocumentsListUpload": DocumentsListUpload_3288621a541b25278480fe069bc10c89,
   "/components/admin/EventMapPicker#EventMapPicker": EventMapPicker_3da6aa2b0f9f1bf99e6b0ff1a6947281,
+  "/components/admin/CampaignSend#CampaignSend": CampaignSend_0baf36a0e8ed39e20877086d678360ba,
+  "/components/admin/AdActions#AdActions": AdActions_b9ccfdf3fb7e1ca305570811130cd50d,
   "/components/admin/AccountActions#AccountActions": AccountActions_b564369a058367a481e030d85bf60b21,
+  "/components/admin/AbandonedStats#AbandonedStats": AbandonedStats_94f229b864dea8aa5a1c0fc91ddd488b,
+  "/components/admin/AdsConnect#AdsConnect": AdsConnect_1e939b69323a51a7a0c8ff4fa9380258,
   "/components/admin/Brand#Icon": Icon_81fda60f3e3709e861f40982a767707d,
   "/components/admin/Brand#Logo": Logo_81fda60f3e3709e861f40982a767707d,
   "/components/admin/HeaderTools#HeaderTools": HeaderTools_9414d29c2c9756e59a8d46abe37d7bbd,
@@ -86,7 +93,6 @@ export const importMap = {
   "/components/admin/NavTidy#NavTidy": NavTidy_301393646d0ca86be08d412869e8d7a9,
   "/components/admin/PasswordReveal#PasswordReveal": PasswordReveal_655eb28e21bff48b103452f82d4670db,
   "/components/admin/BigUploadHandler#BigUploadHandler": BigUploadHandler_709305bcfea441d8e4909a4e42231ade,
-  "@payloadcms/storage-s3/client#S3ClientUploadHandler": S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24,
   "/components/admin/Dashboard#Dashboard": Dashboard_16b88e9b8c48e393fa86591406efd08f,
   "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1
 }

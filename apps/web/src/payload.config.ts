@@ -12,6 +12,10 @@ import { Media } from './collections/Media'
 import { Documents } from './collections/Documents'
 import { Videos } from './collections/Videos'
 import { Music } from './collections/Music'
+import { EmailCampaigns, RecipientLists, TrackingLinks } from './collections/Marketing'
+import { EventAds } from './collections/EventAds'
+import { MarketingSettings } from './globals/MarketingSettings'
+import { AdvertisingSettings } from './globals/AdvertisingSettings'
 import { Categories, EventCategories, Tags, Venues } from './collections/Taxonomy'
 import { Authors } from './collections/Authors'
 import { Articles } from './collections/Articles'
@@ -249,6 +253,10 @@ export default buildConfig({
     EventCategories,
     Enquiries,
     Subscribers,
+    EmailCampaigns,
+    RecipientLists,
+    TrackingLinks,
+    EventAds,
     Users,
     AuditLog,
     Redirects,
@@ -259,7 +267,7 @@ export default buildConfig({
     .map(withPublishOrder)
     // Sign-in log and visitor counter: written by the system, so not audited themselves.
     .concat([LoginEvents, PageViews]),
-  globals: [Homepage, Navigation, AboutPage, ArtistProfile, SiteSettings, PlatformSettings]
+  globals: [Homepage, Navigation, AboutPage, ArtistProfile, SiteSettings, PlatformSettings, MarketingSettings, AdvertisingSettings]
     .map(relaxGlobal)
     .map(withGlobalAudit)
     .map(withGlobalInstantSave),

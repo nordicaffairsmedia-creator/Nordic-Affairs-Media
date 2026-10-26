@@ -1,5 +1,6 @@
 'use client'
 
+import { readTrackingSource } from '@/lib/trackingSource'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Minus, Plus } from 'lucide-react'
 import { bookingApiUrl, checkoutDestination, errorText, type BookingLabels } from '@/lib/booking'
@@ -159,6 +160,7 @@ export function TicketPicker({
           promoCode: promoText.trim() || undefined,
           acceptTerms: form.get('terms') === 'on',
           webOrigin: window.location.origin,
+          trackingSource: readTrackingSource(),
           returnTo,
           items: Object.entries(qty)
             .filter(([, n]) => n > 0)

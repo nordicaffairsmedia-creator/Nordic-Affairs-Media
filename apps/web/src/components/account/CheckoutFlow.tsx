@@ -1,5 +1,6 @@
 'use client'
 
+import { readTrackingSource } from '@/lib/trackingSource'
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Minus, Plus } from 'lucide-react'
 import { bookingApiUrl, checkoutDestination, errorText } from '@/lib/booking'
@@ -398,6 +399,7 @@ export function CheckoutFlow({
           services,
           acceptTerms: buyer.terms,
           webOrigin: window.location.origin,
+          trackingSource: readTrackingSource(),
           ...(method ? { paymentMethod: method } : {}),
           returnTo: 'account',
           items: lines.map((x) => ({ tierId: x.tier.tierId, quantity: x.quantity })),

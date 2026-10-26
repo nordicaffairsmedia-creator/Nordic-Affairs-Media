@@ -40,6 +40,10 @@ export type Order = {
   /** Extras bought in step 3 of checkout. */
   services?: { smsTickets: boolean; refundProtection: boolean; reminder: boolean }
   smsTicketsSentAt?: Date
+  /** Tracking link (Marketing center) the buyer came from, e.g. "instagram-bio". */
+  trackingSource?: string
+  /** Set when the "left the checkout" reminder email was sent (once per order). */
+  abandonedReminderSentAt?: Date
   reminderSentAt?: Date
   currency: string
   items: OrderItem[]

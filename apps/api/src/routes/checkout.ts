@@ -85,6 +85,8 @@ const body = z.object({
     })
     .optional(),
   webOrigin: z.string().trim().max(200).optional(),
+  // Marketing center: the tracking link the buyer came from (a short name, set by the website).
+  trackingSource: z.string().trim().toLowerCase().regex(/^[a-z0-9-]{1,60}$/).optional(),
   // Which payment button the buyer clicked. Only narrows Stripe's page to that method; falls back to all methods if Stripe can't.
   paymentMethod: z.enum(['card', 'klarna', 'swish', 'googlepay', 'applepay']).optional(),
   acceptTerms: z.literal(true),
@@ -316,6 +318,7 @@ async function createOrder(args: {
     ...(input.postalCode ? { postalCode: input.postalCode } : {}),
     ...(input.companyName ? { companyName: input.companyName } : {}),
     ...(input.consent ? { consent: input.consent } : {}),
+    ...(input.trackingSource ? { trackingSource: input.trackingSource } : {}),
     services: services.chosen,
     currency: event.currency,
     items,
