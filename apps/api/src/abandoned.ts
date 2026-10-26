@@ -5,7 +5,7 @@ import { sendEmail, esc } from './email.js'
 import { orders, type Order } from './orders.js'
 
 /*
- * "Left the checkout" reminder (Marketing center → Marketing settings → Automations).
+ * "Left the checkout" reminder (Marketing center → Automations).
  *
  * One email to a buyer who picked tickets in the My Booking checkout, said yes to marketing
  * email, and did not pay. Rules (the same promises the Tickivo-style automation makes):
@@ -20,9 +20,10 @@ type Doc = Record<string, unknown>
 export type AbandonedSettings = { enabled: boolean; waitHours: number; discountCode: string }
 
 export async function abandonedSettings(): Promise<AbandonedSettings> {
-  const doc = await getDb().collection<Doc>('globals').findOne({ globalType: 'marketing-settings' })
+  const doc = await getDb().collection<Doc>('globals').findOne({ globalType: 'marketing-automations' })
   const a = (doc?.abandoned ?? {}) as Record<string, unknown>
-  const wait = typeof a.waitHours === 'number' && a.waitHours >= 1 ? Math.min(a.waitHours, 72) : 1
+  const hours = Number(a.waitHours)
+  const wait = Number.isFinite(hours) && hours >= 1 ? Math.min(hours, 72) : 1
   return {
     enabled: a.enabled === true,
     waitHours: wait,

@@ -16,6 +16,7 @@ import { EmailCampaigns, RecipientLists, TrackingLinks } from './collections/Mar
 import { EventAds } from './collections/EventAds'
 import { MarketingSettings } from './globals/MarketingSettings'
 import { AdvertisingSettings } from './globals/AdvertisingSettings'
+import { MarketingAutomations } from './globals/MarketingAutomations'
 import { Categories, EventCategories, Tags, Venues } from './collections/Taxonomy'
 import { Authors } from './collections/Authors'
 import { Articles } from './collections/Articles'
@@ -267,7 +268,7 @@ export default buildConfig({
     .map(withPublishOrder)
     // Sign-in log and visitor counter: written by the system, so not audited themselves.
     .concat([LoginEvents, PageViews]),
-  globals: [Homepage, Navigation, AboutPage, ArtistProfile, SiteSettings, PlatformSettings, MarketingSettings, AdvertisingSettings]
+  globals: [Homepage, Navigation, AboutPage, ArtistProfile, SiteSettings, PlatformSettings, MarketingSettings, MarketingAutomations, AdvertisingSettings]
     .map(relaxGlobal)
     .map(withGlobalAudit)
     .map(withGlobalInstantSave),

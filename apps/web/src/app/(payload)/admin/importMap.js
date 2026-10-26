@@ -32,7 +32,10 @@ import { EventMapPicker as EventMapPicker_3da6aa2b0f9f1bf99e6b0ff1a6947281 } fro
 import { CampaignSend as CampaignSend_0baf36a0e8ed39e20877086d678360ba } from '../../../components/admin/CampaignSend'
 import { AdActions as AdActions_b9ccfdf3fb7e1ca305570811130cd50d } from '../../../components/admin/AdActions'
 import { AccountActions as AccountActions_b564369a058367a481e030d85bf60b21 } from '../../../components/admin/AccountActions'
+import { AbandonedRules as AbandonedRules_97cfb0c4e30950a1f45ba4fced7bafee } from '../../../components/admin/AbandonedRules'
 import { AbandonedStats as AbandonedStats_94f229b864dea8aa5a1c0fc91ddd488b } from '../../../components/admin/AbandonedStats'
+import { AbandonedTest as AbandonedTest_63af4d078046acb113db64514c448b92 } from '../../../components/admin/AbandonedTest'
+import { AbandonedPreview as AbandonedPreview_9c08b9c4e3f07d0fd75a4a9ebc6b8317 } from '../../../components/admin/AbandonedPreview'
 import { AdsConnect as AdsConnect_1e939b69323a51a7a0c8ff4fa9380258 } from '../../../components/admin/AdsConnect'
 import { Icon as Icon_81fda60f3e3709e861f40982a767707d } from '../../../components/admin/Brand'
 import { Logo as Logo_81fda60f3e3709e861f40982a767707d } from '../../../components/admin/Brand'
@@ -82,7 +85,10 @@ export const importMap = {
   "/components/admin/CampaignSend#CampaignSend": CampaignSend_0baf36a0e8ed39e20877086d678360ba,
   "/components/admin/AdActions#AdActions": AdActions_b9ccfdf3fb7e1ca305570811130cd50d,
   "/components/admin/AccountActions#AccountActions": AccountActions_b564369a058367a481e030d85bf60b21,
+  "/components/admin/AbandonedRules#AbandonedRules": AbandonedRules_97cfb0c4e30950a1f45ba4fced7bafee,
   "/components/admin/AbandonedStats#AbandonedStats": AbandonedStats_94f229b864dea8aa5a1c0fc91ddd488b,
+  "/components/admin/AbandonedTest#AbandonedTest": AbandonedTest_63af4d078046acb113db64514c448b92,
+  "/components/admin/AbandonedPreview#AbandonedPreview": AbandonedPreview_9c08b9c4e3f07d0fd75a4a9ebc6b8317,
   "/components/admin/AdsConnect#AdsConnect": AdsConnect_1e939b69323a51a7a0c8ff4fa9380258,
   "/components/admin/Brand#Icon": Icon_81fda60f3e3709e861f40982a767707d,
   "/components/admin/Brand#Logo": Logo_81fda60f3e3709e861f40982a767707d,
