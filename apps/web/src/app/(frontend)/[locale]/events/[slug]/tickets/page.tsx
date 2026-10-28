@@ -2,7 +2,8 @@ import type { Metadata } from 'next'
 import { notFound, redirect } from 'next/navigation'
 import { isLocale } from '@/i18n/config'
 import { getDictionary } from '@/i18n/getDictionary'
-import { getEventBySlug, getSiteChrome } from '@/lib/queries'
+import { getEventBySlug } from '@/lib/queries'
+import { getPayloadClient } from '@/lib/payload'
 import { formatEventDate, intlLocales } from '@/lib/format'
 import { ticketState } from '@/lib/tickets'
 import { bookingApiUrl } from '@/lib/booking'
@@ -32,7 +33,11 @@ export default async function HubTicketsPage({ params }: Props) {
   if (ticketState(event) !== 'onSale' || !(event.tiers ?? []).length) redirect(eventHref)
 
   const t = getDictionary(locale)
-  const { settings } = await getSiteChrome(locale)
+  // Swish button: Platform settings > Feature switches > swish (off until Stripe has Swish active).
+  const swish = await getPayloadClient()
+    .then((payload) => payload.findGlobal({ slug: 'platform-settings', depth: 0, overrideAccess: true }))
+    .then((platform) => Boolean(platform.features?.swish))
+    .catch(() => false)
   return (
     <div className="container-max pb-20 pt-8">
       <CheckoutFlow
@@ -56,7 +61,7 @@ export default async function HubTicketsPage({ params }: Props) {
         eventHref={eventHref}
         dateLabel={formatEventDate(event.startsAt, locale).full}
         labels={checkoutLabels(t)}
-        swish={Boolean(settings.features?.swish)}
+        swish={swish}
       />
     </div>
   )
