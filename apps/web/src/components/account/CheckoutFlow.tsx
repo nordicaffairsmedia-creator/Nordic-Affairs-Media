@@ -60,6 +60,8 @@ type Props = {
   eventHref: string
   dateLabel: string
   labels: CheckoutLabels
+  /** Swish button on the payment step (Site settings > Feature switches > swish). */
+  swish?: boolean
 }
 
 const emptyBuyer: Buyer = {
@@ -90,6 +92,7 @@ export function CheckoutFlow({
   eventHref,
   dateLabel,
   labels: l,
+  swish,
 }: Props) {
   const [avail, setAvail] = useState<Availability | null>(null)
   const [availStatus, setAvailStatus] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -766,7 +769,7 @@ export function CheckoutFlow({
                   </span>
                 </label>
               )}
-              {!free ? <PaymentMethods title={l.hubPayMethods} note={l.hubPayMethodsNote} disabled={busy || totalQty === 0} onPick={(m) => void buyNow(m)} /> : null}
+              {!free ? <PaymentMethods swish={swish} title={l.hubPayMethods} note={l.hubPayMethodsNote} disabled={busy || totalQty === 0} onPick={(m) => void buyNow(m)} /> : null}
               {!free && avail?.demoPayments ? (
                 <p className="font-ui text-caption text-brass-text">{l.payDemoNote}</p>
               ) : null}

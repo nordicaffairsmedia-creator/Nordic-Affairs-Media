@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound, redirect } from 'next/navigation'
 import { isLocale } from '@/i18n/config'
 import { getDictionary } from '@/i18n/getDictionary'
-import { getEventBySlug } from '@/lib/queries'
+import { getEventBySlug, getSiteChrome } from '@/lib/queries'
 import { formatEventDate, intlLocales } from '@/lib/format'
 import { ticketState } from '@/lib/tickets'
 import { bookingApiUrl } from '@/lib/booking'
@@ -32,6 +32,7 @@ export default async function HubTicketsPage({ params }: Props) {
   if (ticketState(event) !== 'onSale' || !(event.tiers ?? []).length) redirect(eventHref)
 
   const t = getDictionary(locale)
+  const { settings } = await getSiteChrome(locale)
   return (
     <div className="container-max pb-20 pt-8">
       <CheckoutFlow
@@ -55,6 +56,7 @@ export default async function HubTicketsPage({ params }: Props) {
         eventHref={eventHref}
         dateLabel={formatEventDate(event.startsAt, locale).full}
         labels={checkoutLabels(t)}
+        swish={Boolean(settings.features?.swish)}
       />
     </div>
   )
