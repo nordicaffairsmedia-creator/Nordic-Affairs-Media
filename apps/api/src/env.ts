@@ -35,7 +35,7 @@ const schema = z.object({
   RENDER_EXTERNAL_URL: z.preprocess(blank, z.string().optional()),
 
   // Payments (phase 3). Without these, checkout answers "payments not configured".
-  STRIPE_SECRET_KEY: z.preprocess(secret, z.string().startsWith('sk_').optional()),
+  STRIPE_SECRET_KEY: z.preprocess(secret, z.string().regex(/^(sk|rk)_(test|live)_/, 'must start with sk_ or rk_').optional()),
   // Test-only: point the Stripe client at a local stand-in (host:port). Never set in production.
   STRIPE_API_HOST: z.preprocess(blank, z.string().optional()),
   // Optional comma list (e.g. card,klarna,swish). Leave empty to use the methods switched on in the Stripe Dashboard.

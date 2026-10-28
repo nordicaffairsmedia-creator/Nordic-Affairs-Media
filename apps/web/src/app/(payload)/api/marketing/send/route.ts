@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { hasRole } from '@/access/roles'
 import { getPayloadClient } from '@/lib/payload'
-import { ctaTarget, renderEmail, renderSms, resolveRecipients, sendBatch, sendSmsBatch, type Recipient } from '@/lib/marketing'
+import { ctaTarget, renderEmail, renderSms, smsCanReply, resolveRecipients, sendBatch, sendSmsBatch, type Recipient } from '@/lib/marketing'
 import { smsConfigured } from '@/lib/sms'
 
 export const dynamic = 'force-dynamic'
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     if (sms) {
       if (!/^\+[1-9]\d{6,14}$/.test(to)) return NextResponse.json({ error: 'Type the phone number with country code, e.g. +46701234567.' }, { status: 400 })
       const r: Recipient = { email: '', firstName: 'Friend', phone: to, unsubscribeUrl: '' }
-      const out = await sendSmsBatch(settings, [{ to, body: renderSms(c as never, cta, r, true) }])
+      const out = await sendSmsBatch(settings, [{ to, body: renderSms(c as never, cta, r, true, smsCanReply(settings)) }])
       return out.sent ? NextResponse.json({ ok: true, message: `Test text sent to ${to}.` }) : NextResponse.json({ error: out.reason || 'Not sent.' }, { status: 502 })
     }
     const email = to.toLowerCase()
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
   // Claim it first, so a double click can never send twice.
   await payload.update({ collection: 'email-campaigns', id: c.id, data: { status: 'sending', recipientCount: people.length }, overrideAccess: true })
   const out = sms
-    ? await sendSmsBatch(settings, people.map((r) => ({ to: r.phone, body: renderSms(c as never, cta, r) })))
+    ? await sendSmsBatch(settings, people.map((r) => ({ to: r.phone, body: renderSms(c as never, cta, r, false, smsCanReply(settings)) })))
     : await sendBatch(settings, people.map((r) => ({ to: r.email, ...renderEmail(c as never, settings, cta, r), unsubscribeUrl: r.unsubscribeUrl })))
   await payload.update({
     collection: 'email-campaigns',

@@ -2,7 +2,7 @@ import 'server-only'
 import { createHmac } from 'node:crypto'
 import type { Payload } from 'payload'
 import { escapeHtml } from '@/lib/mail'
-import { sendSms } from '@/lib/sms'
+import { sendSmsDetailed } from '@/lib/sms'
 import { siteUrl } from '@/lib/site'
 
 /*
@@ -133,20 +133,35 @@ ${button}</div>
   return { subject: `${test ? '[Test] ' : ''}${fillName(c.subject || '', first)}`, html, text }
 }
 
-export function renderSms(c: Campaign, cta: string, r: Recipient, test = false) {
+/** People can reply STOP only when the text comes from a real phone number (or a Twilio messaging service). A sender name cannot receive replies. */
+export const smsCanReply = (s: Settings) => {
+  if (process.env.TWILIO_MESSAGING_SERVICE_SID) return true
+  const from = (s.smsSender || process.env.TWILIO_FROM || '').trim()
+  return from.startsWith('+') || /^\d{6,}$/.test(from)
+}
+
+export function renderSms(c: Campaign, cta: string, r: Recipient, test = false, canReply = true) {
   const body = fillName(c.body, r.firstName || '').replace(/\s*\n\s*/g, ' ').trim()
-  return `${test ? '[Test] ' : ''}${body}${cta ? ` ${cta}` : ''} Reply STOP to unsubscribe.`
+  const optOut = canReply ? 'Reply STOP to unsubscribe.' : `Unsubscribe: ${r.unsubscribeUrl}`
+  return `${test ? '[Test] ' : ''}${body}${cta ? ` ${cta}` : ''} ${optOut}`
 }
 
 /** Sends texts one by one (Twilio has no batch call). Returns how many were accepted. */
 export async function sendSmsBatch(s: Settings, items: { to: string; body: string }[]) {
   let sent = 0
   let failed = 0
+  let firstError: string | undefined
   for (let i = 0; i < items.length; i += 10) {
-    const results = await Promise.all(items.slice(i, i + 10).map((m) => sendSms(m.to, m.body, s.smsSender || undefined)))
-    for (const ok of results) ok ? sent++ : failed++
+    const results = await Promise.all(items.slice(i, i + 10).map((m) => sendSmsDetailed(m.to, m.body, s.smsSender || undefined)))
+    for (const r of results) {
+      if (r.ok) sent++
+      else {
+        failed++
+        firstError ||= r.error
+      }
+    }
   }
-  return { sent, failed, reason: failed ? 'Twilio did not accept some messages (check TWILIO_* settings and the phone numbers).' : '' }
+  return { sent, failed, reason: failed ? firstError || 'Twilio did not accept some messages (check TWILIO_* settings and the phone numbers).' : '' }
 }
 
 const sender = (s: Settings) => {

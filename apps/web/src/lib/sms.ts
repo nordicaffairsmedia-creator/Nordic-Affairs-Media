@@ -4,7 +4,12 @@ import 'server-only'
 export const smsConfigured = () => Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && (process.env.TWILIO_FROM || process.env.TWILIO_MESSAGING_SERVICE_SID))
 
 export async function sendSms(to: string, body: string, from?: string): Promise<boolean> {
-  if (!smsConfigured()) return false
+  return (await sendSmsDetailed(to, body, from)).ok
+}
+
+/** Same as sendSms, and says why when Twilio refuses (for example an unverified number on a trial account). */
+export async function sendSmsDetailed(to: string, body: string, from?: string): Promise<{ ok: boolean; error?: string }> {
+  if (!smsConfigured()) return { ok: false, error: 'Twilio is not set up (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM).' }
   const sid = process.env.TWILIO_ACCOUNT_SID!
   const base = (process.env.TWILIO_API_BASE || 'https://api.twilio.com').replace(/\/$/, '')
   const params = new URLSearchParams({ To: to, Body: body })
@@ -18,5 +23,8 @@ export async function sendSms(to: string, body: string, from?: string): Promise<
     },
     body: params.toString(),
   }).catch(() => null)
-  return Boolean(res?.ok)
+  if (!res) return { ok: false, error: 'Could not reach Twilio.' }
+  if (res.ok) return { ok: true }
+  const j = (await res.json().catch(() => ({}))) as { code?: number; message?: string }
+  return { ok: false, error: `Twilio: ${j.message ?? `error ${res.status}`}${j.code ? ` (code ${j.code})` : ''}` }
 }
