@@ -6,6 +6,7 @@ import { getPublicVideos } from '@/lib/queries'
 import { isDoc } from '@/lib/payload'
 import { buildMetadata } from '@/lib/seo'
 import { href } from '@/lib/site'
+import { LazyVideo } from '@/components/ui/LazyVideo'
 import { ButtonLink, EmptyState, PageHeader } from '@/components/ui/primitives'
 
 type Props = { params: Promise<{ locale: string }> }
@@ -50,7 +51,7 @@ export default async function MediaPage({ params }: Props) {
                   {isAudio ? (
                     <audio controls preload="none" src={v.url ?? undefined} className="w-full" />
                   ) : (
-                    <video controls preload="none" playsInline poster={poster} src={v.url ?? undefined} className="aspect-video w-full bg-ink" />
+                    {v.url ? <LazyVideo src={v.url} poster={poster} className="aspect-video w-full bg-ink" /> : null}
                   )}
                   <p className="mt-2 font-ui text-caption text-ink">{name}</p>
                   {isAudio ? null : <p className="font-ui text-caption text-ink-muted">{v.format === 'long' ? t.mediaLong : t.mediaShort}</p>}
