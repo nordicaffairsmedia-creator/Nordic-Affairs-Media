@@ -83,6 +83,20 @@ const nextConfig = {
   async headers() {
     return [
       { source: '/:path*', headers: securityHeaders },
+      // Static files in /public (logos, icons, payment marks, about photos, old site images):
+      // browsers keep them a day, the CDN a week, so repeat visits are instant.
+      ...['about', 'brand', 'icons', 'payment', 'wp-content'].map((dir) => ({
+        source: `/${dir}/:path*`,
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=604800' },
+        ],
+      })),
+      {
+        source: '/about-us-background.jpg',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=604800' },
+        ],
+      },
       // Photos are public and their file names never change, so browsers and Vercel's
       // CDN may keep them for a year. Without this every photo went through the server
       // on every visit (about 1 s each) and big galleries loaded slowly.
