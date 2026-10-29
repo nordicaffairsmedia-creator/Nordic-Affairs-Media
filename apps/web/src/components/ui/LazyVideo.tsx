@@ -42,7 +42,7 @@ export function LazyVideo({ src, poster, className }: { src: string; poster?: st
       playsInline
       poster={poster}
       preload={near ? 'metadata' : 'none'}
-      src={near && !poster ? `${src}#t=0.1` : src}
+      src={poster ? src : `${src}#t=0.1`}
       className={className}
     />
   )
