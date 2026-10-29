@@ -120,7 +120,7 @@ export default async function ArticlePage({ params }: Params) {
             poster={poster?.url ?? undefined}
             controls
             playsInline
-            preload="metadata"
+            preload="none"
             className="aspect-video w-full bg-ink"
           >
             <a href={video.url}>{video.title}</a>

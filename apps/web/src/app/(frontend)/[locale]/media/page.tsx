@@ -50,7 +50,7 @@ export default async function MediaPage({ params }: Props) {
                   {isAudio ? (
                     <audio controls preload="none" src={v.url ?? undefined} className="w-full" />
                   ) : (
-                    <video controls preload="metadata" playsInline poster={poster} src={v.url ?? undefined} className="aspect-video w-full bg-ink" />
+                    <video controls preload="none" playsInline poster={poster} src={v.url ?? undefined} className="aspect-video w-full bg-ink" />
                   )}
                   <p className="mt-2 font-ui text-caption text-ink">{name}</p>
                   {isAudio ? null : <p className="font-ui text-caption text-ink-muted">{v.format === 'long' ? t.mediaLong : t.mediaShort}</p>}
