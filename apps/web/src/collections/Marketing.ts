@@ -82,7 +82,10 @@ export const RecipientLists: CollectionConfig = {
     {
       name: 'contacts',
       type: 'array',
-      admin: { initCollapsed: true },
+      admin: {
+        initCollapsed: true,
+        components: { RowLabel: '/components/admin/ContactRowLabel#ContactRowLabel' },
+      },
       fields: [
         { name: 'email', type: 'email', required: true },
         { type: 'row', fields: [{ name: 'firstName', type: 'text' }, { name: 'lastName', type: 'text' }] },
