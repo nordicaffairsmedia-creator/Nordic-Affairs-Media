@@ -172,7 +172,7 @@ export const EmailCampaigns: CollectionConfig = {
           type: 'array',
           label: 'Files',
           labels: { singular: 'File', plural: 'Files' },
-          fields: [{ name: 'file', type: 'upload', relationTo: ['media', 'documents'], required: true }],
+          fields: [{ name: 'file', type: 'upload', relationTo: 'email-files', required: true }],
         },
       ],
     },
@@ -358,4 +358,19 @@ export const EmailFeedback: CollectionConfig = {
     { name: 'score', type: 'number', min: 1, max: 5 },
     { name: 'tag', type: 'text' },
   ],
+}
+
+/** Files attached to campaign emails: pictures, PDF, Word, Excel, anything. Not shown on the public website. */
+export const EmailFiles: CollectionConfig = {
+  slug: 'email-files',
+  labels: { singular: 'Email file', plural: 'Email files' },
+  admin: {
+    group,
+    hidden: hiddenUnless('admin'),
+    useAsTitle: 'filename',
+    description: 'Files you attach to email campaigns. Any type of file. They are not listed on the website.',
+  },
+  access: { read: () => true, create: organizers, update: organizers, delete: organizers },
+  upload: { pasteURL: false, bulkUpload: false },
+  fields: [],
 }
