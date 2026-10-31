@@ -128,7 +128,7 @@ export const EmailCampaigns: CollectionConfig = {
       type: 'select',
       defaultValue: 'plain',
       label: 'Email layout',
-      admin: { condition: (d) => d?.channel !== 'sms', description: 'Plain email: your words only. Template: shows a picture or document from the Templates library at the top.' },
+      admin: { condition: (d) => d?.channel !== 'sms', description: 'Plain email: your words and one button. Template: sends the picture or document from the Templates library as it is, with no text to edit.' },
       options: [
         { label: 'Plain email', value: 'plain' },
         { label: 'Template (from the Templates library)', value: 'template' },
@@ -138,18 +138,19 @@ export const EmailCampaigns: CollectionConfig = {
       name: 'template',
       type: 'relationship',
       relationTo: 'email-templates',
-      admin: { condition: (d) => d?.channel !== 'sms' && d?.layout === 'template', description: 'Pick a template. Upload new ones in Marketing center, Templates. The words below stay editable.' },
+      admin: { condition: (d) => d?.channel !== 'sms' && d?.layout === 'template', description: 'Pick a template. Upload new ones in Marketing center, Templates.' },
     },
-    { name: 'headline', type: 'text', label: 'Headline', admin: { condition: (d) => d?.channel !== 'sms', description: 'Big title above the message (optional). Empty = the template headline.' } },
+    { name: 'headline', type: 'text', label: 'Headline', admin: { condition: (d) => d?.channel !== 'sms' && d?.layout !== 'template', description: 'Big title above the message (optional).' } },
     {
       name: 'body',
       type: 'textarea',
-      required: true,
+      validate: (v, { siblingData }) => ((siblingData as { layout?: string } | undefined)?.layout === 'template' || String(v ?? '').trim() ? true : 'Write the message.'),
       label: 'Message (email: main paragraphs)',
-      admin: { rows: 10, description: 'Plain text. A blank line starts a new paragraph. {{firstName}} becomes the reader\'s first name. For text messages keep it short (160 characters is one message); the link and "Reply STOP to unsubscribe" are added for you.' },
+      admin: { condition: (d) => !(d?.channel !== 'sms' && d?.layout === 'template'), rows: 10, description: 'Plain text. A blank line starts a new paragraph. {{firstName}} becomes the reader\'s first name. For text messages keep it short (160 characters is one message); the link and "Reply STOP to unsubscribe" are added for you.' },
     },
     {
       type: 'row',
+      admin: { condition: (d) => !(d?.channel !== 'sms' && d?.layout === 'template') },
       fields: [
         { name: 'ctaLabel', type: 'text', label: 'Button text', admin: { description: 'e.g. Request coverage. Empty = the template button text.' } },
         { name: 'ctaUrl', type: 'text', label: 'Button link', admin: { description: 'Full address or a page like /en/contact. Leave empty to use a tracking link below, or the template link.' } },
@@ -390,10 +391,6 @@ export const EmailTemplates: CollectionConfig = {
     { name: 'name', type: 'text', required: true, admin: { description: 'Only you see this name.' } },
     { name: 'picture', type: 'upload', relationTo: 'email-files', label: 'Template picture', admin: { description: 'The design shown at the top of the email (JPG, PNG). Best width 1200 px.' } },
     { name: 'document', type: 'upload', relationTo: 'email-files', label: 'Template document (PDF, Word, any file)', admin: { description: 'Optional. Readers get it as a download button. Sent as a real attachment when you send to one person. If it is a picture and no picture is set above, it is shown in the email.' } },
-    { name: 'headline', type: 'text', label: 'Default headline', admin: { description: 'Used when the campaign has no headline of its own.' } },
-    { type: 'row', fields: [
-      { name: 'buttonLabel', type: 'text', label: 'Default button text' },
-      { name: 'buttonUrl', type: 'text', label: 'Default button link', admin: { description: 'e.g. /en/contact or a full address.' } },
-    ] },
+    { name: 'buttonUrl', type: 'text', label: 'Link when the picture is clicked', admin: { description: 'e.g. /en/contact or a full address. Optional.' } },
   ],
 }

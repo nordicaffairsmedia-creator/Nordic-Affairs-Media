@@ -168,13 +168,21 @@ export function renderTemplate(c: TemplateCampaign, o: TemplateOpts) {
         : ''
 
   const pictureHtml = picture
-    ? `<tr><td align="center" style="padding:0;line-height:0">${buttonUrl ? `<a href="${escapeHtml(buttonUrl)}" target="_blank" style="display:block">` : ''}<img src="${escapeHtml(picture.url)}" width="600" alt="${escapeHtml(headline || picture.filename)}" style="width:100%;max-width:600px;height:auto;display:block;border:0">${buttonUrl ? '</a>' : ''}</td></tr>`
+    ? `<tr><td align="center" style="padding:0;line-height:0">${buttonUrl ? `<a href="${escapeHtml(buttonUrl)}" target="_blank" style="display:block">` : ''}<img src="${escapeHtml(picture.url)}" width="600" alt="${escapeHtml(picture.filename)}" style="width:100%;max-width:600px;height:auto;display:block;border:0">${buttonUrl ? '</a>' : ''}</td></tr>`
     : ''
 
   const button =
     buttonUrl && label
       ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 0"><tr><td align="center" bgcolor="#005293" style="background-color:#005293;border-radius:4px"><a href="${escapeHtml(buttonUrl)}" target="_blank" style="display:inline-block;background-color:#005293;color:#ffffff;font-weight:700;font-size:13px;letter-spacing:1.2px;text-transform:uppercase;padding:13px 30px;border-radius:4px;text-decoration:none">${escapeHtml(label.toUpperCase())}</a></td></tr></table>`
       : ''
+
+  // A template email is the template itself: no headline, message or button of its own.
+  const textBlock = t
+    ? ''
+    : `<tr><td class="mp" style="padding:30px 36px 28px;color:#334155">
+${headline ? `<h2 style="margin:0 0 16px;font-size:24px;line-height:32px;font-weight:800;color:#0f172a">${escapeHtml(headline)}</h2>` : ''}
+${bodyParas.map((p) => `<p style="margin:0 0 16px;font-size:15px;line-height:24px;color:#334155">${escapeHtml(p).replace(/\n/g, '<br>')}</p>`).join('')}
+${button}</td></tr>`
 
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="color-scheme" content="light"><title>Nordic Affairs Media</title>
 <style>@media only screen and (max-width:600px){.email-container{width:100%!important;max-width:100%!important}.mp{padding-left:20px!important;padding-right:20px!important}}</style></head>
@@ -184,10 +192,7 @@ ${c.preheader ? `<div style="display:none;font-size:1px;color:#f1f5f9;line-heigh
 <table role="presentation" class="email-container" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:4px;overflow:hidden;border:1px solid #e2e8f0">
 ${o.test ? '<tr><td style="background:#fef3c7;color:#92400e;font-size:12px;padding:8px 16px;text-align:center">This is a test email.</td></tr>' : ''}
 ${pictureHtml}
-<tr><td class="mp" style="padding:30px 36px 28px;color:#334155">
-${headline ? `<h2 style="margin:0 0 16px;font-size:24px;line-height:32px;font-weight:800;color:#0f172a">${escapeHtml(headline)}</h2>` : ''}
-${bodyParas.map((p) => `<p style="margin:0 0 16px;font-size:15px;line-height:24px;color:#334155">${escapeHtml(p).replace(/\n/g, '<br>')}</p>`).join('')}
-${button}</td></tr>
+${textBlock}
 ${downloads}
 ${feedback}
 <tr><td class="mp" style="padding:22px 36px 26px;background-color:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;line-height:19px;color:#64748b">
@@ -196,9 +201,9 @@ ${feedback}
 </table></td></tr></table></body></html>`
 
   const text = [
-    headline,
-    bodyParas.join('\n\n'),
-    buttonUrl && label ? `${label}: ${buttonUrl}` : '',
+    t ? (buttonUrl ? `${picture?.filename || 'Nordic Affairs Media'}: ${buttonUrl}` : '') : headline,
+    t ? '' : bodyParas.join('\n\n'),
+    !t && buttonUrl && label ? `${label}: ${buttonUrl}` : '',
     files.length && o.attachmentsAsLinks !== false ? `Files:\n${files.map((f) => `${f.filename}: ${f.url}`).join('\n')}` : '',
     '--',
     o.footer,
