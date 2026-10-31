@@ -46,7 +46,8 @@ const importContacts: CollectionBeforeChangeHook = ({ data, originalDoc }) => {
       })
     }
   }
-  d.contacts = [...byEmail.values()].map((r) => ({ ...r, token: r.token || token() }))
+  const nameOf = (r: { firstName?: string; lastName?: string; email?: string }) => `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim().toLowerCase() || String(r.email ?? '').toLowerCase()
+  d.contacts = [...byEmail.values()].map((r) => ({ ...r, token: r.token || token() })).sort((x, y) => nameOf(x).localeCompare(nameOf(y)) || String(x.email).localeCompare(String(y.email)))
   d.contactCount = (d.contacts as { unsubscribed?: boolean }[]).filter((r) => !r.unsubscribed).length
   return data
 }
@@ -124,33 +125,21 @@ export const EmailCampaigns: CollectionConfig = {
     { name: 'subject', type: 'text', admin: { condition: (d) => d?.channel !== 'sms', description: 'Required for email.' } },
     { name: 'preheader', type: 'text', admin: { condition: (d) => d?.channel !== 'sms', description: 'The short grey line after the subject in the inbox (optional).' } },
     {
-      name: 'layout',
-      type: 'select',
-      defaultValue: 'plain',
-      label: 'Email layout',
-      admin: { condition: (d) => d?.channel !== 'sms', description: 'Plain email: your words and one button. Template: sends the picture or document from the Templates library as it is, with no text to edit.' },
-      options: [
-        { label: 'Plain email', value: 'plain' },
-        { label: 'Template (from the Templates library)', value: 'template' },
-      ],
-    },
-    {
       name: 'template',
       type: 'relationship',
       relationTo: 'email-templates',
-      admin: { condition: (d) => d?.channel !== 'sms' && d?.layout === 'template', description: 'Pick a template. Upload new ones in Marketing center, Templates.' },
+      label: 'Header image (from Templates)', admin: { condition: (d) => d?.channel !== 'sms', description: 'Optional. The picture of the template you pick is placed at the top of the email. Upload new ones in Marketing center, Templates.' },
     },
-    { name: 'headline', type: 'text', label: 'Headline', admin: { condition: (d) => d?.channel !== 'sms' && d?.layout !== 'template', description: 'Big title above the message (optional).' } },
+    { name: 'headline', type: 'text', label: 'Headline', admin: { condition: (d) => d?.channel !== 'sms', description: 'Big title above the message (optional).' } },
     {
       name: 'body',
       type: 'textarea',
-      validate: (v, { siblingData }) => ((siblingData as { layout?: string } | undefined)?.layout === 'template' || String(v ?? '').trim() ? true : 'Write the message.'),
+      required: true,
       label: 'Message (email: main paragraphs)',
-      admin: { condition: (d) => !(d?.channel !== 'sms' && d?.layout === 'template'), rows: 10, description: 'Plain text. A blank line starts a new paragraph. {{firstName}} becomes the reader\'s first name. For text messages keep it short (160 characters is one message); the link and "Reply STOP to unsubscribe" are added for you.' },
+      admin: { rows: 10, description: 'Plain text. A blank line starts a new paragraph. {{firstName}} becomes the reader\'s first name. For text messages keep it short (160 characters is one message); the link and "Reply STOP to unsubscribe" are added for you.' },
     },
     {
       type: 'row',
-      admin: { condition: (d) => !(d?.channel !== 'sms' && d?.layout === 'template') },
       fields: [
         { name: 'ctaLabel', type: 'text', label: 'Button text', admin: { description: 'e.g. Request coverage. Empty = the template button text.' } },
         { name: 'ctaUrl', type: 'text', label: 'Button link', admin: { description: 'Full address or a page like /en/contact. Leave empty to use a tracking link below, or the template link.' } },
@@ -165,7 +154,7 @@ export const EmailCampaigns: CollectionConfig = {
     {
       type: 'collapsible',
       label: 'Files (pictures, PDF, Word, Excel, any file)',
-      admin: { initCollapsed: false, condition: (d) => d?.channel !== 'sms', description: 'Upload with the button, or pick a file already in the library. To everyone on a list the files become download buttons in the email. To send them as real attachments use "Send to one person" below.' },
+      admin: { initCollapsed: false, condition: (d) => d?.channel !== 'sms', description: 'Pictures, PDF, Word, Excel, any file. They are attached as real files when you press "Send to one person (files attached)" below.' },
       fields: [
         {
           name: 'attachments',
@@ -173,26 +162,6 @@ export const EmailCampaigns: CollectionConfig = {
           label: 'Files',
           labels: { singular: 'File', plural: 'Files' },
           fields: [{ name: 'file', type: 'upload', relationTo: 'email-files', required: true }],
-        },
-      ],
-    },
-    {
-      type: 'collapsible',
-      label: 'Feedback block (stars and tags)',
-      admin: { initCollapsed: true, condition: (d) => d?.channel !== 'sms', description: 'Readers click a star or a tag in the email. Results show in the "Feedback results" box and in Email feedback.' },
-      fields: [
-        { name: 'feedbackOn', type: 'checkbox', label: 'Show the feedback block', defaultValue: false },
-        { name: 'feedbackEyebrow', type: 'text', label: 'Small title', admin: { placeholder: 'Executive media feedback' } },
-        { name: 'feedbackTitle', type: 'text', label: 'Question', admin: { placeholder: 'How was your experience working with our press pool?' } },
-        { name: 'feedbackText', type: 'text', label: 'Line under the question', admin: { placeholder: 'Tap below to submit your rating instantly (1 click):' } },
-        {
-          name: 'tags',
-          type: 'array',
-          label: 'Tags readers can click',
-          admin: { description: 'Empty = the four standard tags.' },
-          fields: [
-            { type: 'row', fields: [{ name: 'emoji', type: 'text', admin: { width: '20%' } }, { name: 'label', type: 'text', required: true }] },
-          ],
         },
       ],
     },
@@ -219,7 +188,6 @@ export const EmailCampaigns: CollectionConfig = {
     },
     { name: 'lists', type: 'relationship', relationTo: 'recipient-lists', hasMany: true, label: 'Also send to these lists' },
     { name: 'send', type: 'ui', admin: { components: { Field: '/components/admin/CampaignSend#CampaignSend' } } },
-    { name: 'results', type: 'ui', admin: { components: { Field: '/components/admin/FeedbackResults#FeedbackResults' } } },
     {
       type: 'row',
       admin: { position: 'sidebar' },
@@ -384,13 +352,12 @@ export const EmailTemplates: CollectionConfig = {
     hidden: hiddenUnless('admin'),
     useAsTitle: 'name',
     defaultColumns: ['name', 'updatedAt'],
-    description: 'Upload a design once (a picture, PDF or any document), then pick it in any email campaign.',
+    description: 'Upload a header picture once, then pick it in any email campaign.',
   },
   access: { read: organizers, create: organizers, update: organizers, delete: organizers },
   fields: [
     { name: 'name', type: 'text', required: true, admin: { description: 'Only you see this name.' } },
-    { name: 'picture', type: 'upload', relationTo: 'email-files', label: 'Template picture', admin: { description: 'The design shown at the top of the email (JPG, PNG). Best width 1200 px.' } },
-    { name: 'document', type: 'upload', relationTo: 'email-files', label: 'Template document (PDF, Word, any file)', admin: { description: 'Optional. Readers get it as a download button. Sent as a real attachment when you send to one person. If it is a picture and no picture is set above, it is shown in the email.' } },
+    { name: 'picture', type: 'upload', relationTo: 'email-files', label: 'Header picture', admin: { description: 'Placed at the top of the email as its header (JPG, PNG). Best width 1200 px.' } },
     { name: 'buttonUrl', type: 'text', label: 'Link when the picture is clicked', admin: { description: 'e.g. /en/contact or a full address. Optional.' } },
   ],
 }

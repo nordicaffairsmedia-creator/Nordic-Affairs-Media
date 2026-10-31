@@ -81,24 +81,18 @@ function fileOf(u: unknown): AttachmentInfo | null {
 }
 
 const templateOf = (c: TemplateCampaign): TemplateDoc | null =>
-  c.layout === 'template' && c.template && typeof c.template === 'object' ? c.template : null
+  c.template && typeof c.template === 'object' ? c.template : null
 
 /** The picture shown at the top: the template's picture, or its document when that is itself a picture. */
 function templatePicture(c: TemplateCampaign): AttachmentInfo | null {
   const t = templateOf(c)
   if (!t) return null
-  const pic = fileOf(t.picture)
-  if (pic) return pic
-  const doc = fileOf(t.document)
-  return doc && doc.mime.startsWith('image/') ? doc : null
+  return fileOf(t.picture)
 }
 
 /** Every file that goes with the email: the template's document first, then the files added to the campaign. */
 export function attachmentList(c: { attachments?: unknown[] | null } & Partial<TemplateCampaign>): AttachmentInfo[] {
   const out: AttachmentInfo[] = []
-  const t = templateOf(c as TemplateCampaign)
-  const doc = t ? fileOf(t.document) : null
-  if (doc && !doc.mime.startsWith('image/')) out.push(doc)
   for (const row of c.attachments ?? []) {
     const f = (row as { file?: unknown } | null)?.file
     const info = fileOf(f && typeof f === 'object' && 'value' in f ? (f as { value?: unknown }).value : f)
@@ -128,14 +122,14 @@ export type TemplateOpts = {
 export function renderTemplate(c: TemplateCampaign, o: TemplateOpts) {
   const first = o.first
   const t = templateOf(c)
-  const headline = fill(nonEmpty(c.headline) || nonEmpty(t?.headline), first)
+  const headline = fill(nonEmpty(c.headline), first)
   const bodyParas = paras(fill(c.body || '', first))
-  const label = nonEmpty(c.ctaLabel) || nonEmpty(t?.buttonLabel)
-  const url = o.cta || nonEmpty(t?.buttonUrl)
+  const label = nonEmpty(c.ctaLabel)
+  const url = o.cta
   const buttonUrl = url ? abs(url) : ''
   const picture = templatePicture(c)
   const files = attachmentList(c)
-  const showFeedback = c.feedbackOn === true && o.feedbackBase
+  const showFeedback = false as boolean
 
   const fbBase = showFeedback ? `${siteUrl}/api/marketing/feedback?c=${encodeURIComponent(String(c.id))}&e=${encodeURIComponent(o.feedbackBase!.email)}&s=${feedbackSig(c.id, o.feedbackBase!.email)}` : ''
   const stars = ['Poor', 'Fair', 'Good', 'Very Good', 'Outstanding']
@@ -167,8 +161,9 @@ export function renderTemplate(c: TemplateCampaign, o: TemplateOpts) {
         ? `<tr><td align="center" style="padding:20px 36px;text-align:center;border-top:1px solid #e2e8f0;font-size:13px;color:#475569">&#128206; ${files.length === 1 ? 'A file is attached' : `${files.length} files are attached`} to this email.</td></tr>`
         : ''
 
+  const headerUrl = nonEmpty(t?.buttonUrl) ? abs(nonEmpty(t?.buttonUrl)) : buttonUrl
   const pictureHtml = picture
-    ? `<tr><td align="center" style="padding:0;line-height:0">${buttonUrl ? `<a href="${escapeHtml(buttonUrl)}" target="_blank" style="display:block">` : ''}<img src="${escapeHtml(picture.url)}" width="600" alt="${escapeHtml(picture.filename)}" style="width:100%;max-width:600px;height:auto;display:block;border:0">${buttonUrl ? '</a>' : ''}</td></tr>`
+    ? `<tr><td align="center" style="padding:0;line-height:0">${headerUrl ? `<a href="${escapeHtml(headerUrl)}" target="_blank" style="display:block">` : ''}<img src="${escapeHtml(picture.url)}" width="600" alt="${escapeHtml(picture.filename)}" style="width:100%;max-width:600px;height:auto;display:block;border:0">${headerUrl ? '</a>' : ''}</td></tr>`
     : ''
 
   const button =
@@ -177,9 +172,7 @@ export function renderTemplate(c: TemplateCampaign, o: TemplateOpts) {
       : ''
 
   // A template email is the template itself: no headline, message or button of its own.
-  const textBlock = t
-    ? ''
-    : `<tr><td class="mp" style="padding:30px 36px 28px;color:#334155">
+  const textBlock = `<tr><td class="mp" style="padding:30px 36px 28px;color:#334155">
 ${headline ? `<h2 style="margin:0 0 16px;font-size:24px;line-height:32px;font-weight:800;color:#0f172a">${escapeHtml(headline)}</h2>` : ''}
 ${bodyParas.map((p) => `<p style="margin:0 0 16px;font-size:15px;line-height:24px;color:#334155">${escapeHtml(p).replace(/\n/g, '<br>')}</p>`).join('')}
 ${button}</td></tr>`
@@ -193,7 +186,6 @@ ${c.preheader ? `<div style="display:none;font-size:1px;color:#f1f5f9;line-heigh
 ${o.test ? '<tr><td style="background:#fef3c7;color:#92400e;font-size:12px;padding:8px 16px;text-align:center">This is a test email.</td></tr>' : ''}
 ${pictureHtml}
 ${textBlock}
-${downloads}
 ${feedback}
 <tr><td class="mp" style="padding:22px 36px 26px;background-color:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;line-height:19px;color:#64748b">
 <p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#334155">${escapeHtml(o.footer).replace(/\n/g, '<br>')}</p>
@@ -201,10 +193,9 @@ ${feedback}
 </table></td></tr></table></body></html>`
 
   const text = [
-    t ? (buttonUrl ? `${picture?.filename || 'Nordic Affairs Media'}: ${buttonUrl}` : '') : headline,
-    t ? '' : bodyParas.join('\n\n'),
-    !t && buttonUrl && label ? `${label}: ${buttonUrl}` : '',
-    files.length && o.attachmentsAsLinks !== false ? `Files:\n${files.map((f) => `${f.filename}: ${f.url}`).join('\n')}` : '',
+    headline,
+    bodyParas.join('\n\n'),
+    buttonUrl && label ? `${label}: ${buttonUrl}` : '',
     '--',
     o.footer,
     `Unsubscribe: ${o.unsubscribeUrl}`,
