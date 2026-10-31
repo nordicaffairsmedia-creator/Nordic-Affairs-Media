@@ -28,15 +28,11 @@ const importContacts: CollectionBeforeChangeHook = ({ data, originalDoc }) => {
   const d = data as Record<string, unknown>
   const pasted = typeof d.importCsv === 'string' ? d.importCsv.trim() : ''
   d.importCsv = ''
-  const rows = (Array.isArray(d.contacts) ? d.contacts : (originalDoc?.contacts ?? [])) as {
-    email?: string
-    firstName?: string
-    lastName?: string
-    phone?: string
-    unsubscribed?: boolean
-    token?: string
-  }[]
-  const byEmail = new Map(rows.map((r) => [String(r.email ?? '').toLowerCase(), r]))
+  type Row = { email?: string; firstName?: string; lastName?: string; phone?: string; unsubscribed?: boolean; token?: string }
+  // Every row typed in by hand is kept, even when two people share one email address. Rows without a valid email are dropped.
+  const rows = ((Array.isArray(d.contacts) ? d.contacts : (originalDoc?.contacts ?? [])) as Row[])
+    .filter((r) => EMAIL.test(String(r?.email ?? '').trim()))
+    .map((r) => ({ ...r, email: String(r.email).trim().toLowerCase() }))
   if (pasted) {
     if (!d.consentConfirmed && !originalDoc?.consentConfirmed)
       throw new Error('Tick "These people agreed to get marketing email" before you import contacts.')
@@ -44,20 +40,21 @@ const importContacts: CollectionBeforeChangeHook = ({ data, originalDoc }) => {
       const [email = '', firstName = '', lastName = '', phone = ''] = line.split(/[;,\t]/).map((s) => s.trim().replace(/^"|"$/g, ''))
       if (!EMAIL.test(email) || /^email$/i.test(email)) continue
       const key = email.toLowerCase()
-      const old = byEmail.get(key)
-      byEmail.set(key, {
-        email: key,
-        firstName: firstName || old?.firstName || '',
-        lastName: lastName || old?.lastName || '',
-        phone: /^\+[1-9]\d{6,14}$/.test(phone.replace(/[\s-]/g, '')) ? phone.replace(/[\s-]/g, '') : old?.phone || '',
-        unsubscribed: old?.unsubscribed ?? false,
-        token: old?.token || token(),
-      })
+      const phoneOk = /^\+[1-9]\d{6,14}$/.test(phone.replace(/[\s-]/g, '')) ? phone.replace(/[\s-]/g, '') : ''
+      const old = rows.find((r) => r.email === key && (!firstName || (r.firstName ?? '').toLowerCase() === firstName.toLowerCase() || !r.firstName))
+      if (old) {
+        old.firstName = firstName || old.firstName || ''
+        old.lastName = lastName || old.lastName || ''
+        old.phone = phoneOk || old.phone || ''
+      } else {
+        rows.push({ email: key, firstName, lastName, phone: phoneOk, unsubscribed: false, token: token() })
+      }
     }
   }
-  const nameOf = (r: { firstName?: string; lastName?: string; email?: string }) => `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim().toLowerCase() || String(r.email ?? '').toLowerCase()
-  d.contacts = [...byEmail.values()].map((r) => ({ ...r, token: r.token || token() })).sort((x, y) => nameOf(x).localeCompare(nameOf(y)) || String(x.email).localeCompare(String(y.email)))
-  d.contactCount = (d.contacts as { unsubscribed?: boolean }[]).filter((r) => !r.unsubscribed).length
+  d.contacts = rows
+    .map((r) => ({ ...r, token: r.token || token() }))
+    .sort((x, y) => contactName(x).localeCompare(contactName(y)) || String(x.email).localeCompare(String(y.email)))
+  d.contactCount = rows.filter((r) => !r.unsubscribed).length
   return data
 }
 
