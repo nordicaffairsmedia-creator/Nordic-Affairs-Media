@@ -12,7 +12,7 @@ import { Media } from './collections/Media'
 import { Documents } from './collections/Documents'
 import { Videos } from './collections/Videos'
 import { Music } from './collections/Music'
-import { EmailCampaigns, EmailFeedback, EmailFiles, RecipientLists, TrackingLinks } from './collections/Marketing'
+import { EmailCampaigns, EmailFeedback, EmailFiles, EmailTemplates, RecipientLists, TrackingLinks } from './collections/Marketing'
 import { EventAds } from './collections/EventAds'
 import { MarketingSettings } from './globals/MarketingSettings'
 import { AdvertisingSettings } from './globals/AdvertisingSettings'
@@ -258,6 +258,7 @@ export default buildConfig({
     EmailCampaigns,
     EmailFeedback,
     EmailFiles,
+    EmailTemplates,
     RecipientLists,
     TrackingLinks,
     EventAds,

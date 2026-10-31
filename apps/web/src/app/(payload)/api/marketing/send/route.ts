@@ -15,7 +15,7 @@ export async function POST(req: Request) {
 
   const body = (await req.json().catch(() => ({}))) as { id?: string | number; test?: string; one?: string; preview?: boolean; count?: boolean }
   if (!body.id) return NextResponse.json({ error: 'Save the campaign first.' }, { status: 400 })
-  const c = await payload.findByID({ collection: 'email-campaigns', id: body.id, depth: 1, overrideAccess: true }).catch(() => null)
+  const c = await payload.findByID({ collection: 'email-campaigns', id: body.id, depth: 2, overrideAccess: true }).catch(() => null)
   if (!c) return NextResponse.json({ error: 'Campaign not found.' }, { status: 404 })
   const sms = c.channel === 'sms'
   const settings = (await payload.findGlobal({ slug: 'marketing-settings', overrideAccess: true }).catch(() => ({}))) as Record<string, string | null>

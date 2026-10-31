@@ -4,25 +4,33 @@ import { escapeHtml } from '@/lib/mail'
 import { siteUrl } from '@/lib/site'
 
 /*
- * The "Clean Blue" email template (email-template-1). The logo, the banner picture, the colours and the layout
- * are fixed. Only the words and the three button links are edited, per campaign, in the admin.
- * Anything left empty falls back to the template's own wording, so an email always looks finished.
+ * Campaign emails have two layouts:
+ *  - Plain email: your words, one button, files.
+ *  - Template: a picture or document uploaded in the Templates library is shown at the top of the email.
+ *    The words (headline, message, button) stay editable per campaign.
+ * Both can carry files (download buttons for many people, real attachments for one person),
+ * and an optional star and tag feedback block.
  */
+
+type Upload = { url?: string | null; filename?: string | null; filesize?: number | null; mimeType?: string | null } | string | number | null | undefined
+
+export type TemplateDoc = {
+  picture?: Upload
+  document?: Upload
+  headline?: string | null
+  buttonLabel?: string | null
+  buttonUrl?: string | null
+}
 
 export type TemplateCampaign = {
   id: string | number
   subject?: string | null
   preheader?: string | null
   body: string
-  intro?: string | null
+  layout?: 'plain' | 'template' | null
+  template?: TemplateDoc | string | number | null
   headline?: string | null
   ctaLabel?: string | null
-  button2Label?: string | null
-  button2Url?: string | null
-  headline2?: string | null
-  text2?: string | null
-  button3Label?: string | null
-  button3Url?: string | null
   feedbackOn?: boolean | null
   feedbackEyebrow?: string | null
   feedbackTitle?: string | null
@@ -32,23 +40,10 @@ export type TemplateCampaign = {
 }
 
 export const DEFAULTS = {
-  button1: 'Request coverage',
-  button1Url: '/en/contact',
-  intro:
-    'Nordic Affairs Media is a Sweden-based media organization specializing in diplomatic events, official visits, international summits, royal ceremonies, and sports coverage across Sweden and worldwide.',
-  headline: 'Authoritative Coverage for High-Level Global Affairs',
-  body:
-    'From high-level multilateral summits in Stockholm to bilateral state visits across Europe and the globe, our team delivers accredited photography, real-time editorial pool feeds, and broadcast-ready video assets. We work closely with embassies, diplomatic missions, and international press delegations to ensure total compliance with state protocol.\n\nWhether you need dedicated pool camera positions at the Royal Palace, red-carpet arrival documentation for head-of-state visits, or high-definition syndication feeds, our experienced crews provide seamless end-to-end media production.',
-  button2: 'Access press archive',
-  button2Url: '/en/media',
-  headline2: 'Elite Sports & Outside Broadcast Operations',
-  text2:
-    'In addition to state affairs, Nordic Affairs Media deploys specialized 4K camera units and live broadcast infrastructure for major Scandinavian sports championships, arena ice hockey tournaments, and international athletic competitions.',
-  button3: 'View sports wire',
-  button3Url: '/en/events',
-  feedbackEyebrow: 'Executive media feedback',
-  feedbackTitle: 'How was your experience working with our press pool?',
-  feedbackText: 'Tap below to submit your rating instantly (1 click):',
+  button: 'Learn more',
+  feedbackEyebrow: 'Your feedback',
+  feedbackTitle: 'How did you like this email?',
+  feedbackText: 'Tap below to rate it (1 click):',
   tags: [
     { emoji: '⚡', label: 'Rapid Delivery' },
     { emoji: '🎥', label: '4K Broadcast Quality' },
@@ -71,18 +66,6 @@ export const feedbackSig = (campaignId: string | number, email: string) =>
 
 export type AttachmentInfo = { url: string; filename: string; size: number; mime: string }
 
-/** Turns the attachments chosen in the admin (loaded with depth 1) into plain file facts. */
-export function attachmentList(c: { attachments?: unknown[] | null }): AttachmentInfo[] {
-  const out: AttachmentInfo[] = []
-  for (const row of c.attachments ?? []) {
-    const f = (row as { file?: { value?: unknown } | null })?.file
-    const doc = (f && typeof f === 'object' && 'value' in f ? f.value : f) as { url?: string; filename?: string; filesize?: number; mimeType?: string } | string | number | null | undefined
-    if (!doc || typeof doc !== 'object' || !doc.url || !doc.filename) continue
-    out.push({ url: abs(doc.url), filename: doc.filename, size: doc.filesize ?? 0, mime: doc.mimeType ?? '' })
-  }
-  return out
-}
-
 /** Relative links ("/en/contact") get the real website address in front. */
 export function abs(u: string) {
   const v = u.trim()
@@ -90,45 +73,71 @@ export function abs(u: string) {
   return `${siteUrl}${v.startsWith('/') ? '' : '/'}${v}`
 }
 
-const pick = (v: string | null | undefined, d: string) => (v && v.trim() ? v.trim() : d)
+function fileOf(u: unknown): AttachmentInfo | null {
+  if (!u || typeof u !== 'object') return null
+  const d = u as { url?: string | null; filename?: string | null; filesize?: number | null; mimeType?: string | null }
+  if (!d.url || !d.filename) return null
+  return { url: abs(d.url), filename: d.filename, size: d.filesize ?? 0, mime: d.mimeType ?? '' }
+}
+
+const templateOf = (c: TemplateCampaign): TemplateDoc | null =>
+  c.layout === 'template' && c.template && typeof c.template === 'object' ? c.template : null
+
+/** The picture shown at the top: the template's picture, or its document when that is itself a picture. */
+function templatePicture(c: TemplateCampaign): AttachmentInfo | null {
+  const t = templateOf(c)
+  if (!t) return null
+  const pic = fileOf(t.picture)
+  if (pic) return pic
+  const doc = fileOf(t.document)
+  return doc && doc.mime.startsWith('image/') ? doc : null
+}
+
+/** Every file that goes with the email: the template's document first, then the files added to the campaign. */
+export function attachmentList(c: { attachments?: unknown[] | null } & Partial<TemplateCampaign>): AttachmentInfo[] {
+  const out: AttachmentInfo[] = []
+  const t = templateOf(c as TemplateCampaign)
+  const doc = t ? fileOf(t.document) : null
+  if (doc && !doc.mime.startsWith('image/')) out.push(doc)
+  for (const row of c.attachments ?? []) {
+    const f = (row as { file?: unknown } | null)?.file
+    const info = fileOf(f && typeof f === 'object' && 'value' in f ? (f as { value?: unknown }).value : f)
+    if (info) out.push(info)
+  }
+  return out
+}
+
 const fill = (t: string, first: string) => t.replace(/\{\{\s*firstName\s*\}\}/g, first)
 const paras = (t: string) => t.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)
 const sizeLabel = (n: number) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : n ? `${Math.max(1, Math.round(n / 1024))} KB` : '')
-
-const btn = (href: string, label: string) => `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto"><tr><td align="center" bgcolor="#005293" style="background-color:#005293;border-radius:4px"><a href="${escapeHtml(href)}" target="_blank" style="display:inline-block;background-color:#005293;color:#ffffff;font-weight:700;font-size:13px;letter-spacing:1.2px;text-transform:uppercase;padding:13px 30px;border-radius:4px;text-decoration:none">${escapeHtml(label.toUpperCase())}</a></td></tr></table>`
+const nonEmpty = (v: string | null | undefined) => (v && v.trim() ? v.trim() : '')
 
 export type TemplateOpts = {
   first: string
   unsubscribeUrl: string
-  /** Button 1 address (a tracking link when one is chosen). */
+  /** Button address (a tracking link when one is chosen). */
   cta: string
   footer: string
   test?: boolean
-  /** Feedback links are only added when we know who is reading. */
+  /** Feedback links are added when we know who is reading ('test' = shown but not recorded). */
   feedbackBase?: { email: string } | null
-  /** Bulk sends show attachments as download buttons. Real attachments (one-to-one) are listed as a note. */
+  /** Bulk sends show files as download buttons. One-to-one sends attach them and only mention it. */
   attachmentsAsLinks?: boolean
 }
 
 export function renderTemplate(c: TemplateCampaign, o: TemplateOpts) {
   const first = o.first
-  const t = (v: string | null | undefined, d: string) => fill(pick(v, d), first)
-  const intro = t(c.intro, DEFAULTS.intro)
-  const headline = t(c.headline, DEFAULTS.headline)
-  const bodyParas = paras(t(c.body, DEFAULTS.body))
-  const headline2 = t(c.headline2, DEFAULTS.headline2)
-  const text2 = t(c.text2, DEFAULTS.text2)
-  const url1 = abs(o.cta || DEFAULTS.button1Url)
-  const url2 = abs(pick(c.button2Url, DEFAULTS.button2Url))
-  const url3 = abs(pick(c.button3Url, DEFAULTS.button3Url))
-  const label1 = pick(c.ctaLabel, DEFAULTS.button1)
-  const label2 = pick(c.button2Label, DEFAULTS.button2)
-  const label3 = pick(c.button3Label, DEFAULTS.button3)
+  const t = templateOf(c)
+  const headline = fill(nonEmpty(c.headline) || nonEmpty(t?.headline), first)
+  const bodyParas = paras(fill(c.body || '', first))
+  const label = nonEmpty(c.ctaLabel) || nonEmpty(t?.buttonLabel)
+  const url = o.cta || nonEmpty(t?.buttonUrl)
+  const buttonUrl = url ? abs(url) : ''
+  const picture = templatePicture(c)
   const files = attachmentList(c)
-  const img = (name: string) => `${siteUrl}/email/${name}`
-  const home = siteUrl
+  const showFeedback = c.feedbackOn === true && o.feedbackBase
 
-  const fbBase = o.feedbackBase && c.feedbackOn !== false ? `${siteUrl}/api/marketing/feedback?c=${encodeURIComponent(String(c.id))}&e=${encodeURIComponent(o.feedbackBase.email)}&s=${feedbackSig(c.id, o.feedbackBase.email)}` : ''
+  const fbBase = showFeedback ? `${siteUrl}/api/marketing/feedback?c=${encodeURIComponent(String(c.id))}&e=${encodeURIComponent(o.feedbackBase!.email)}&s=${feedbackSig(c.id, o.feedbackBase!.email)}` : ''
   const stars = ['Poor', 'Fair', 'Good', 'Very Good', 'Outstanding']
   const tagList = (c.tags && c.tags.length ? c.tags : DEFAULTS.tags).filter((x) => x?.label?.trim())
 
@@ -138,18 +147,17 @@ export function renderTemplate(c: TemplateCampaign, o: TemplateOpts) {
     `<a href="${escapeHtml(fbBase)}&tag=${encodeURIComponent(slugTag(x.label || ''))}" target="_blank" style="display:inline-block;padding:8px 16px;margin:4px;background:#ffffff;border:1px solid #cbd5e1;border-radius:9999px;font-size:12px;font-weight:600;color:#334155;text-decoration:none">${x.emoji ? `${escapeHtml(x.emoji)} ` : ''}${escapeHtml(x.label || '')}</a>`
 
   const feedback = fbBase
-    ? `<tr><td align="center" style="padding:32px 36px 28px;text-align:center">
-<span style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;color:#005293">${escapeHtml(t(c.feedbackEyebrow, DEFAULTS.feedbackEyebrow))}</span>
-<h4 style="margin:8px 0 6px;font-size:18px;font-weight:700;color:#0f172a">${escapeHtml(t(c.feedbackTitle, DEFAULTS.feedbackTitle))}</h4>
-<p style="margin:0 0 18px;font-size:13px;color:#64748b">${escapeHtml(t(c.feedbackText, DEFAULTS.feedbackText))}</p>
+    ? `<tr><td align="center" style="padding:28px 36px;text-align:center;border-top:1px solid #e2e8f0">
+<span style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;color:#005293">${escapeHtml(nonEmpty(c.feedbackEyebrow) || DEFAULTS.feedbackEyebrow)}</span>
+<h4 style="margin:8px 0 6px;font-size:18px;font-weight:700;color:#0f172a">${escapeHtml(nonEmpty(c.feedbackTitle) || DEFAULTS.feedbackTitle)}</h4>
+<p style="margin:0 0 18px;font-size:13px;color:#64748b">${escapeHtml(nonEmpty(c.feedbackText) || DEFAULTS.feedbackText)}</p>
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 10px"><tr>${[1, 2, 3, 4, 5].map(starCell).join('')}</tr></table>
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 20px;width:100%;max-width:290px"><tr><td align="left" style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase">1 &bull; Poor</td><td align="right" style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase">5 &bull; Outstanding</td></tr></table>
 <div>${tagList.map(pill).join('')}</div></td></tr>`
     : ''
 
   const downloads =
     files.length && o.attachmentsAsLinks !== false
-      ? `<tr><td align="center" style="padding:28px 36px;text-align:center;border-top:1px solid #e2e8f0"><span style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;color:#005293">Files for you</span><table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:14px auto 0">${files
+      ? `<tr><td align="center" style="padding:24px 36px;text-align:center;border-top:1px solid #e2e8f0"><span style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;color:#005293">Files for you</span><table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:14px auto 0">${files
           .map(
             (f) =>
               `<tr><td align="center" style="padding:5px 0"><a href="${escapeHtml(f.url)}" target="_blank" style="display:inline-block;background:#ffffff;border:1.5px solid #005293;color:#005293;font-weight:700;font-size:13px;padding:10px 22px;border-radius:4px;text-decoration:none">&#8595; ${escapeHtml(f.filename)}${f.size ? ` <span style="font-weight:400;color:#64748b">(${sizeLabel(f.size)})</span>` : ''}</a></td></tr>`,
@@ -159,6 +167,15 @@ export function renderTemplate(c: TemplateCampaign, o: TemplateOpts) {
         ? `<tr><td align="center" style="padding:20px 36px;text-align:center;border-top:1px solid #e2e8f0;font-size:13px;color:#475569">&#128206; ${files.length === 1 ? 'A file is attached' : `${files.length} files are attached`} to this email.</td></tr>`
         : ''
 
+  const pictureHtml = picture
+    ? `<tr><td align="center" style="padding:0;line-height:0">${buttonUrl ? `<a href="${escapeHtml(buttonUrl)}" target="_blank" style="display:block">` : ''}<img src="${escapeHtml(picture.url)}" width="600" alt="${escapeHtml(headline || picture.filename)}" style="width:100%;max-width:600px;height:auto;display:block;border:0">${buttonUrl ? '</a>' : ''}</td></tr>`
+    : ''
+
+  const button =
+    buttonUrl && label
+      ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 0"><tr><td align="center" bgcolor="#005293" style="background-color:#005293;border-radius:4px"><a href="${escapeHtml(buttonUrl)}" target="_blank" style="display:inline-block;background-color:#005293;color:#ffffff;font-weight:700;font-size:13px;letter-spacing:1.2px;text-transform:uppercase;padding:13px 30px;border-radius:4px;text-decoration:none">${escapeHtml(label.toUpperCase())}</a></td></tr></table>`
+      : ''
+
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="color-scheme" content="light"><title>Nordic Affairs Media</title>
 <style>@media only screen and (max-width:600px){.email-container{width:100%!important;max-width:100%!important}.mp{padding-left:20px!important;padding-right:20px!important}}</style></head>
 <body style="margin:0;padding:0;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
@@ -166,34 +183,22 @@ ${c.preheader ? `<div style="display:none;font-size:1px;color:#f1f5f9;line-heigh
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f1f5f9"><tr><td align="center" style="padding:24px 12px 40px">
 <table role="presentation" class="email-container" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:4px;overflow:hidden;border:1px solid #e2e8f0">
 ${o.test ? '<tr><td style="background:#fef3c7;color:#92400e;font-size:12px;padding:8px 16px;text-align:center">This is a test email.</td></tr>' : ''}
-<tr><td align="center" style="background-color:#0e233f;padding:22px 20px;text-align:center"><a href="${escapeHtml(home)}" target="_blank" style="display:inline-block;text-decoration:none"><img src="${img('logo.png')}" width="190" alt="Nordic Affairs Media" style="width:190px;max-width:100%;height:auto;display:block;margin:0 auto;border:0"></a></td></tr>
-<tr><td align="center" style="padding:0;background-color:#ffffff;line-height:0"><a href="${escapeHtml(home)}" target="_blank" style="display:block"><img src="${img('hero-banner.jpg')}" width="600" alt="Nordic Affairs Media - Diplomacy, Royalty, State Affairs, Sports Coverage" style="width:100%;max-width:600px;height:auto;display:block;border:0"></a></td></tr>
-<tr><td align="center" class="mp" style="padding:34px 36px 26px;text-align:center"><div style="margin:0 auto 22px">${btn(url1, label1)}</div>
-<p style="margin:0 auto;font-size:15px;line-height:24px;color:#475569;max-width:480px">${escapeHtml(intro).replace(/\n/g, '<br>')}</p></td></tr>
-<tr><td align="center" class="mp" style="padding:10px 36px 28px;text-align:center"><div style="width:48px;height:3px;background-color:#005293;margin:0 auto 24px"></div>
-<h2 style="margin:0 0 16px;font-size:26px;line-height:34px;font-weight:800;color:#0f172a;letter-spacing:-0.5px">${escapeHtml(headline)}</h2>
-${bodyParas.map((p, i) => `<p style="margin:0 auto ${i === bodyParas.length - 1 ? 24 : 16}px;font-size:14px;line-height:23px;color:#334155;max-width:500px">${escapeHtml(p).replace(/\n/g, '<br>')}</p>`).join('')}
-${btn(url2, label2)}</td></tr>
-<tr><td align="center" class="mp" style="padding:10px 36px 32px;text-align:center;background-color:#f8fafc;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0">
-<h3 style="margin:10px 0 14px;font-size:22px;line-height:30px;font-weight:800;color:#0f172a;letter-spacing:-0.3px">${escapeHtml(headline2)}</h3>
-<p style="margin:0 auto 22px;font-size:14px;line-height:22px;color:#475569;max-width:480px">${escapeHtml(text2).replace(/\n/g, '<br>')}</p>${btn(url3, label3)}</td></tr>
+${pictureHtml}
+<tr><td class="mp" style="padding:30px 36px 28px;color:#334155">
+${headline ? `<h2 style="margin:0 0 16px;font-size:24px;line-height:32px;font-weight:800;color:#0f172a">${escapeHtml(headline)}</h2>` : ''}
+${bodyParas.map((p) => `<p style="margin:0 0 16px;font-size:15px;line-height:24px;color:#334155">${escapeHtml(p).replace(/\n/g, '<br>')}</p>`).join('')}
+${button}</td></tr>
 ${downloads}
 ${feedback}
-<tr><td class="mp" style="padding:26px 36px 32px;background-color:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;line-height:19px;color:#64748b">
-<p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#334155">${escapeHtml(o.footer).replace(/\n/g, '<br>')}</p>
-<p style="margin:0 0 16px;font-size:11px;color:#94a3b8;line-height:16px">Diplomacy &bull; Royalty &bull; State Affairs &bull; Sports Coverage across Sweden and Worldwide.<br>Official Website: <a href="${escapeHtml(home)}" target="_blank" style="color:#005293;font-weight:600">${escapeHtml(home.replace(/^https?:\/\//, ''))}</a></p>
-<p style="margin:0;font-size:11px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:14px"><a href="${escapeHtml(o.unsubscribeUrl)}" target="_blank" style="color:#005293;text-decoration:underline">Unsubscribe</a> &nbsp;|&nbsp; <a href="${escapeHtml(`${siteUrl}/en/privacy`)}" target="_blank" style="color:#005293;text-decoration:underline">Privacy Policy</a></p></td></tr>
+<tr><td class="mp" style="padding:22px 36px 26px;background-color:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;line-height:19px;color:#64748b">
+<p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#334155">${escapeHtml(o.footer).replace(/\n/g, '<br>')}</p>
+<p style="margin:0;font-size:11px;color:#64748b"><a href="${escapeHtml(o.unsubscribeUrl)}" target="_blank" style="color:#005293;text-decoration:underline">Unsubscribe</a> &nbsp;|&nbsp; <a href="${escapeHtml(`${siteUrl}/en/privacy`)}" target="_blank" style="color:#005293;text-decoration:underline">Privacy Policy</a></p></td></tr>
 </table></td></tr></table></body></html>`
 
   const text = [
-    intro,
-    `${label1}: ${url1}`,
     headline,
     bodyParas.join('\n\n'),
-    `${label2}: ${url2}`,
-    headline2,
-    text2,
-    `${label3}: ${url3}`,
+    buttonUrl && label ? `${label}: ${buttonUrl}` : '',
     files.length && o.attachmentsAsLinks !== false ? `Files:\n${files.map((f) => `${f.filename}: ${f.url}`).join('\n')}` : '',
     '--',
     o.footer,

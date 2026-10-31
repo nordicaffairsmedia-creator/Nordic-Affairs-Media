@@ -124,6 +124,24 @@ export const EmailCampaigns: CollectionConfig = {
     { name: 'subject', type: 'text', admin: { condition: (d) => d?.channel !== 'sms', description: 'Required for email.' } },
     { name: 'preheader', type: 'text', admin: { condition: (d) => d?.channel !== 'sms', description: 'The short grey line after the subject in the inbox (optional).' } },
     {
+      name: 'layout',
+      type: 'select',
+      defaultValue: 'plain',
+      label: 'Email layout',
+      admin: { condition: (d) => d?.channel !== 'sms', description: 'Plain email: your words only. Template: shows a picture or document from the Templates library at the top.' },
+      options: [
+        { label: 'Plain email', value: 'plain' },
+        { label: 'Template (from the Templates library)', value: 'template' },
+      ],
+    },
+    {
+      name: 'template',
+      type: 'relationship',
+      relationTo: 'email-templates',
+      admin: { condition: (d) => d?.channel !== 'sms' && d?.layout === 'template', description: 'Pick a template. Upload new ones in Marketing center, Templates. The words below stay editable.' },
+    },
+    { name: 'headline', type: 'text', label: 'Headline', admin: { condition: (d) => d?.channel !== 'sms', description: 'Big title above the message (optional). Empty = the template headline.' } },
+    {
       name: 'body',
       type: 'textarea',
       required: true,
@@ -133,8 +151,8 @@ export const EmailCampaigns: CollectionConfig = {
     {
       type: 'row',
       fields: [
-        { name: 'ctaLabel', type: 'text', label: 'Button 1 text', admin: { description: 'Email: the top button. e.g. Request coverage. Left empty, the template wording is used.' } },
-        { name: 'ctaUrl', type: 'text', label: 'Button 1 link', admin: { description: 'Full address or a page like /en/contact. Leave empty to use a tracking link below, or the default page.' } },
+        { name: 'ctaLabel', type: 'text', label: 'Button text', admin: { description: 'e.g. Request coverage. Empty = the template button text.' } },
+        { name: 'ctaUrl', type: 'text', label: 'Button link', admin: { description: 'Full address or a page like /en/contact. Leave empty to use a tracking link below, or the template link.' } },
       ],
     },
     {
@@ -145,26 +163,7 @@ export const EmailCampaigns: CollectionConfig = {
     },
     {
       type: 'collapsible',
-      label: 'Email template wording (the pictures and colours stay the same)',
-      admin: { initCollapsed: false, condition: (d) => d?.channel !== 'sms', description: 'Change any words below. Empty boxes use the standard template wording. {{firstName}} works in every box.' },
-      fields: [
-        { name: 'intro', type: 'textarea', label: 'Intro line (under button 1)', admin: { rows: 3, placeholder: 'Nordic Affairs Media is a Sweden-based media organization ...' } },
-        { name: 'headline', type: 'text', label: 'Main headline', admin: { placeholder: 'Authoritative Coverage for High-Level Global Affairs' } },
-        { type: 'row', fields: [
-          { name: 'button2Label', type: 'text', label: 'Button 2 text', admin: { placeholder: 'Access press archive' } },
-          { name: 'button2Url', type: 'text', label: 'Button 2 link', admin: { placeholder: '/en/media' } },
-        ] },
-        { name: 'headline2', type: 'text', label: 'Second headline', admin: { placeholder: 'Elite Sports & Outside Broadcast Operations' } },
-        { name: 'text2', type: 'textarea', label: 'Second text', admin: { rows: 3 } },
-        { type: 'row', fields: [
-          { name: 'button3Label', type: 'text', label: 'Button 3 text', admin: { placeholder: 'View sports wire' } },
-          { name: 'button3Url', type: 'text', label: 'Button 3 link', admin: { placeholder: '/en/events' } },
-        ] },
-      ],
-    },
-    {
-      type: 'collapsible',
-      label: 'Files (pictures, PDF, Word, Excel)',
+      label: 'Files (pictures, PDF, Word, Excel, any file)',
       admin: { initCollapsed: false, condition: (d) => d?.channel !== 'sms', description: 'Upload with the button, or pick a file already in the library. To everyone on a list the files become download buttons in the email. To send them as real attachments use "Send to one person" below.' },
       fields: [
         {
@@ -181,7 +180,7 @@ export const EmailCampaigns: CollectionConfig = {
       label: 'Feedback block (stars and tags)',
       admin: { initCollapsed: true, condition: (d) => d?.channel !== 'sms', description: 'Readers click a star or a tag in the email. Results show in the "Feedback results" box and in Email feedback.' },
       fields: [
-        { name: 'feedbackOn', type: 'checkbox', label: 'Show the feedback block', defaultValue: true },
+        { name: 'feedbackOn', type: 'checkbox', label: 'Show the feedback block', defaultValue: false },
         { name: 'feedbackEyebrow', type: 'text', label: 'Small title', admin: { placeholder: 'Executive media feedback' } },
         { name: 'feedbackTitle', type: 'text', label: 'Question', admin: { placeholder: 'How was your experience working with our press pool?' } },
         { name: 'feedbackText', type: 'text', label: 'Line under the question', admin: { placeholder: 'Tap below to submit your rating instantly (1 click):' } },
@@ -373,4 +372,28 @@ export const EmailFiles: CollectionConfig = {
   access: { read: () => true, create: organizers, update: organizers, delete: organizers },
   upload: { pasteURL: false, bulkUpload: false },
   fields: [],
+}
+
+/** Email templates: a picture or a document (PDF, Word ...) that is shown at the top of a campaign email. */
+export const EmailTemplates: CollectionConfig = {
+  slug: 'email-templates',
+  labels: { singular: 'Email template', plural: 'Templates' },
+  admin: {
+    group,
+    hidden: hiddenUnless('admin'),
+    useAsTitle: 'name',
+    defaultColumns: ['name', 'updatedAt'],
+    description: 'Upload a design once (a picture, PDF or any document), then pick it in any email campaign.',
+  },
+  access: { read: organizers, create: organizers, update: organizers, delete: organizers },
+  fields: [
+    { name: 'name', type: 'text', required: true, admin: { description: 'Only you see this name.' } },
+    { name: 'picture', type: 'upload', relationTo: 'email-files', label: 'Template picture', admin: { description: 'The design shown at the top of the email (JPG, PNG). Best width 1200 px.' } },
+    { name: 'document', type: 'upload', relationTo: 'email-files', label: 'Template document (PDF, Word, any file)', admin: { description: 'Optional. Readers get it as a download button. Sent as a real attachment when you send to one person. If it is a picture and no picture is set above, it is shown in the email.' } },
+    { name: 'headline', type: 'text', label: 'Default headline', admin: { description: 'Used when the campaign has no headline of its own.' } },
+    { type: 'row', fields: [
+      { name: 'buttonLabel', type: 'text', label: 'Default button text' },
+      { name: 'buttonUrl', type: 'text', label: 'Default button link', admin: { description: 'e.g. /en/contact or a full address.' } },
+    ] },
+  ],
 }
