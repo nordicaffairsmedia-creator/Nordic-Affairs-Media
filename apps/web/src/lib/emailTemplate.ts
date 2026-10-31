@@ -41,9 +41,9 @@ export type TemplateCampaign = {
 
 export const DEFAULTS = {
   button: 'Learn more',
-  feedbackEyebrow: 'Your feedback',
-  feedbackTitle: 'How did you like this email?',
-  feedbackText: 'Tap below to rate it (1 click):',
+  feedbackEyebrow: 'Executive media feedback',
+  feedbackTitle: 'How was your experience working with our press pool?',
+  feedbackText: 'Tap below to submit your rating instantly (1 click):',
   tags: [
     { emoji: '⚡', label: 'Rapid Delivery' },
     { emoji: '🎥', label: '4K Broadcast Quality' },
@@ -129,7 +129,7 @@ export function renderTemplate(c: TemplateCampaign, o: TemplateOpts) {
   const buttonUrl = url ? abs(url) : ''
   const picture = templatePicture(c)
   const files = attachmentList(c)
-  const showFeedback = false as boolean
+  const showFeedback = c.feedbackOn !== false && o.feedbackBase
 
   const fbBase = showFeedback ? `${siteUrl}/api/marketing/feedback?c=${encodeURIComponent(String(c.id))}&e=${encodeURIComponent(o.feedbackBase!.email)}&s=${feedbackSig(c.id, o.feedbackBase!.email)}` : ''
   const stars = ['Poor', 'Fair', 'Good', 'Very Good', 'Outstanding']
@@ -141,12 +141,12 @@ export function renderTemplate(c: TemplateCampaign, o: TemplateOpts) {
     `<a href="${escapeHtml(fbBase)}&tag=${encodeURIComponent(slugTag(x.label || ''))}" target="_blank" style="display:inline-block;padding:8px 16px;margin:4px;background:#ffffff;border:1px solid #cbd5e1;border-radius:9999px;font-size:12px;font-weight:600;color:#334155;text-decoration:none">${x.emoji ? `${escapeHtml(x.emoji)} ` : ''}${escapeHtml(x.label || '')}</a>`
 
   const feedback = fbBase
-    ? `<tr><td align="center" style="padding:28px 36px;text-align:center;border-top:1px solid #e2e8f0">
+    ? `<tr><td align="center" style="padding:32px 36px 28px;text-align:center;border-top:1px solid #e2e8f0">
 <span style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;color:#005293">${escapeHtml(nonEmpty(c.feedbackEyebrow) || DEFAULTS.feedbackEyebrow)}</span>
 <h4 style="margin:8px 0 6px;font-size:18px;font-weight:700;color:#0f172a">${escapeHtml(nonEmpty(c.feedbackTitle) || DEFAULTS.feedbackTitle)}</h4>
 <p style="margin:0 0 18px;font-size:13px;color:#64748b">${escapeHtml(nonEmpty(c.feedbackText) || DEFAULTS.feedbackText)}</p>
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 10px"><tr>${[1, 2, 3, 4, 5].map(starCell).join('')}</tr></table>
-<div>${tagList.map(pill).join('')}</div></td></tr>`
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto;width:100%;max-width:290px"><tr><td align="left" style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">1 &bull; Poor</td><td align="right" style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">5 &bull; Outstanding</td></tr></table></td></tr>`
     : ''
 
   const downloads =

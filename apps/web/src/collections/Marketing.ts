@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import type { CollectionBeforeChangeHook, CollectionConfig, PayloadRequest } from 'payload'
+import type { CollectionAfterReadHook, CollectionBeforeChangeHook, CollectionConfig, PayloadRequest } from 'payload'
 import { organizers, hiddenUnless } from '@/access/roles'
 
 /*
@@ -15,6 +15,15 @@ const token = () => randomBytes(18).toString('base64url')
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 /** "Paste contacts" → rows. One person per line: email, first name, last name (comma or semicolon). */
+const contactName = (r: { firstName?: string | null; lastName?: string | null; email?: string | null }) =>
+  `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim().toLowerCase() || String(r.email ?? '').toLowerCase()
+
+/** Contacts always show in alphabetical order, also for lists saved before and after adding a person by hand. */
+const sortContactsRead: CollectionAfterReadHook = ({ doc }) => {
+  if (Array.isArray(doc?.contacts)) doc.contacts = [...doc.contacts].sort((x, y) => contactName(x).localeCompare(contactName(y)) || String(x.email).localeCompare(String(y.email)))
+  return doc
+}
+
 const importContacts: CollectionBeforeChangeHook = ({ data, originalDoc }) => {
   const d = data as Record<string, unknown>
   const pasted = typeof d.importCsv === 'string' ? d.importCsv.trim() : ''
@@ -64,7 +73,7 @@ export const RecipientLists: CollectionConfig = {
       'People who agreed to get marketing email. Paste their emails, one per line (email, first name, last name, phone). Everyone gets an unsubscribe link.',
   },
   access: { read: organizers, create: organizers, update: organizers, delete: organizers },
-  hooks: { beforeChange: [importContacts] },
+  hooks: { beforeChange: [importContacts], afterRead: [sortContactsRead] },
   fields: [
     { name: 'name', type: 'text', required: true },
     {
@@ -153,16 +162,13 @@ export const EmailCampaigns: CollectionConfig = {
     },
     {
       type: 'collapsible',
-      label: 'Files (pictures, PDF, Word, Excel, any file)',
-      admin: { initCollapsed: false, condition: (d) => d?.channel !== 'sms', description: 'Pictures, PDF, Word, Excel, any file. They are attached as real files when you press "Send to one person (files attached)" below.' },
+      label: 'Star rating (feedback)',
+      admin: { initCollapsed: true, condition: (d) => d?.channel !== 'sms', description: 'Readers tap a star (1 to 5) in the email. Results show in the "Feedback results" box below and in Email feedback.' },
       fields: [
-        {
-          name: 'attachments',
-          type: 'array',
-          label: 'Files',
-          labels: { singular: 'File', plural: 'Files' },
-          fields: [{ name: 'file', type: 'upload', relationTo: 'email-files', required: true }],
-        },
+        { name: 'feedbackOn', type: 'checkbox', label: 'Show the star rating in the email', defaultValue: true },
+        { name: 'feedbackEyebrow', type: 'text', label: 'Small title', admin: { placeholder: 'Executive media feedback' } },
+        { name: 'feedbackTitle', type: 'text', label: 'Question', admin: { placeholder: 'How was your experience working with our press pool?' } },
+        { name: 'feedbackText', type: 'text', label: 'Line under the question', admin: { placeholder: 'Tap below to submit your rating instantly (1 click):' } },
       ],
     },
     {
@@ -188,6 +194,7 @@ export const EmailCampaigns: CollectionConfig = {
     },
     { name: 'lists', type: 'relationship', relationTo: 'recipient-lists', hasMany: true, label: 'Also send to these lists' },
     { name: 'send', type: 'ui', admin: { components: { Field: '/components/admin/CampaignSend#CampaignSend' } } },
+    { name: 'results', type: 'ui', admin: { components: { Field: '/components/admin/FeedbackResults#FeedbackResults' } } },
     {
       type: 'row',
       admin: { position: 'sidebar' },

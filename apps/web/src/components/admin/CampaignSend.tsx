@@ -54,7 +54,7 @@ export function CampaignSend() {
       {!sms ? (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 12 }}>
           <input value={one} onChange={(e) => setOne(e.target.value)} placeholder="one person's email" style={{ minWidth: 240 }} />
-          <button type="button" className={btn} disabled={busy || !one.includes('@')} onClick={() => { if (confirm(`Send this email to ${one} with the files attached?`)) call({ one }) }}>Send to one person (files attached)</button>
+          <button type="button" className={btn} disabled={busy || !one.includes('@')} onClick={() => { if (confirm(`Send this email to ${one}?`)) call({ one }) }}>Send to one person</button>
         </div>
       ) : null}
       {msg ? <p style={{ marginTop: 12 }}>{msg}</p> : null}
