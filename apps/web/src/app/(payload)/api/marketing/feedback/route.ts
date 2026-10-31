@@ -38,7 +38,7 @@ export async function GET(req: Request) {
   }
 
   if (tagSlug) {
-    const tags = (camp.tags && camp.tags.length ? camp.tags : DEFAULTS.tags) as { label?: string | null }[]
+    const tags = DEFAULTS.tags as { label?: string | null }[]
     const tag = tags.find((t) => t.label && slugTag(t.label) === tagSlug)
     if (!tag?.label) return page('This link is not valid', 'That option is no longer available.')
     const found = await payload.find({ collection: 'email-feedback', where: { and: [{ campaign: { equals: c } }, { email: { equals: e } }, { kind: { equals: 'tag' } }, { tag: { equals: tag.label } }] }, limit: 1, depth: 0, overrideAccess: true })
