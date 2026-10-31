@@ -4,6 +4,7 @@ import type { Payload } from 'payload'
 import { escapeHtml } from '@/lib/mail'
 import { sendSmsDetailed } from '@/lib/sms'
 import { siteUrl } from '@/lib/site'
+import { renderTemplate, attachmentList, type TemplateCampaign } from '@/lib/emailTemplate'
 
 /*
  * Marketing messages: who a campaign reaches, what it looks like, and sending it.
@@ -14,7 +15,7 @@ import { siteUrl } from '@/lib/site'
 
 export type Recipient = { email: string; firstName: string; phone: string; unsubscribeUrl: string }
 
-type Campaign = {
+type Campaign = Omit<TemplateCampaign, 'body'> & {
   id: string | number
   channel?: 'email' | 'sms' | null
   subject?: string | null
@@ -114,22 +115,18 @@ export async function ctaTarget(payload: Payload, c: Campaign): Promise<string> 
 
 const fillName = (t: string, first: string) => t.replace(/\{\{\s*firstName\s*\}\}/g, first)
 
-export function renderEmail(c: Campaign, s: Settings, cta: string, r: Recipient, test = false) {
+export function renderEmail(c: Campaign, s: Settings, cta: string, r: Recipient, test = false, opts: { attachmentsAsLinks?: boolean } = {}) {
   const first = r.firstName || ''
-  const paragraphs = fillName(c.body, first).split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)
-  const footer = (s.footerText || 'Nordic Affairs Media, Sweden').trim()
-  const button =
-    cta && c.ctaLabel
-      ? `<p style="margin:28px 0"><a href="${escapeHtml(cta)}" style="background:#0b2447;color:#fff;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:600;display:inline-block">${escapeHtml(c.ctaLabel)}</a></p>`
-      : ''
-  const html = `<!doctype html><html><body style="margin:0;background:#f4f4f2;font-family:Arial,Helvetica,sans-serif;color:#1a1a1a">
-${c.preheader ? `<div style="display:none;max-height:0;overflow:hidden">${escapeHtml(fillName(c.preheader, first))}</div>` : ''}
-<div style="max-width:560px;margin:0 auto;padding:24px 16px"><div style="background:#fff;border-radius:8px;padding:28px">
-${test ? '<p style="color:#b45309;font-size:12px;margin:0 0 12px">This is a test email.</p>' : ''}
-${paragraphs.map((p) => `<p style="line-height:1.55;margin:0 0 16px">${escapeHtml(p).replace(/\n/g, '<br>')}</p>`).join('')}
-${button}</div>
-<p style="font-size:12px;color:#666;text-align:center;line-height:1.5;margin:16px 0 0">${escapeHtml(footer).replace(/\n/g, '<br>')}<br><a href="${escapeHtml(r.unsubscribeUrl)}" style="color:#666">Unsubscribe</a></p></div></body></html>`
-  const text = `${paragraphs.join('\n\n')}${cta && c.ctaLabel ? `\n\n${c.ctaLabel}: ${cta}` : ''}\n\n--\n${footer}\nUnsubscribe: ${r.unsubscribeUrl}`
+  const footer = (s.footerText || 'Nordic Affairs Media \u2022 Stockholm, Sweden').trim()
+  const { html, text } = renderTemplate(c as TemplateCampaign, {
+    first,
+    unsubscribeUrl: r.unsubscribeUrl,
+    cta,
+    footer,
+    test,
+    feedbackBase: { email: test ? 'test' : r.email },
+    attachmentsAsLinks: opts.attachmentsAsLinks,
+  })
   return { subject: `${test ? '[Test] ' : ''}${fillName(c.subject || '', first)}`, html, text }
 }
 
@@ -206,3 +203,33 @@ export async function sendBatch(
   }
   return { sent, failed, reason }
 }
+
+/** One email to one person, with the chosen files really attached (Resend fetches them from their link). Max about 30 MB in total. */
+export async function sendOne(
+  s: Settings,
+  mail: { to: string; subject: string; html: string; text: string; unsubscribeUrl: string },
+  files: { url: string; filename: string; size: number }[],
+) {
+  const key = process.env.RESEND_API_KEY
+  if (!key) return { sent: 0, failed: 1, reason: 'RESEND_API_KEY is not set on the website.' }
+  const total = files.reduce((n, f) => n + f.size, 0)
+  if (total > 30 * 1048576) return { sent: 0, failed: 1, reason: 'The files are bigger than 30 MB together. Remove some or send them as download buttons.' }
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: sender(s),
+      to: [mail.to],
+      subject: mail.subject,
+      html: mail.html,
+      text: mail.text,
+      reply_to: s.replyTo || undefined,
+      attachments: files.map((f) => ({ filename: f.filename, path: f.url })),
+      headers: { 'List-Unsubscribe': `<${mail.unsubscribeUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
+    }),
+  }).catch(() => null)
+  if (res?.ok) return { sent: 1, failed: 0, reason: '' }
+  return { sent: 0, failed: 1, reason: res ? `Resend said ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}` : 'Could not reach Resend.' }
+}
+
+export { attachmentList }

@@ -127,14 +127,14 @@ export const EmailCampaigns: CollectionConfig = {
       name: 'body',
       type: 'textarea',
       required: true,
-      label: 'Message',
+      label: 'Message (email: main paragraphs)',
       admin: { rows: 10, description: 'Plain text. A blank line starts a new paragraph. {{firstName}} becomes the reader\'s first name. For text messages keep it short (160 characters is one message); the link and "Reply STOP to unsubscribe" are added for you.' },
     },
     {
       type: 'row',
       fields: [
-        { name: 'ctaLabel', type: 'text', label: 'Button text', admin: { description: 'e.g. Buy tickets' } },
-        { name: 'ctaUrl', type: 'text', label: 'Button link', admin: { description: 'Full address. Leave empty to use a tracking link below.' } },
+        { name: 'ctaLabel', type: 'text', label: 'Button 1 text', admin: { description: 'Email: the top button. e.g. Request coverage. Left empty, the template wording is used.' } },
+        { name: 'ctaUrl', type: 'text', label: 'Button 1 link', admin: { description: 'Full address or a page like /en/contact. Leave empty to use a tracking link below, or the default page.' } },
       ],
     },
     {
@@ -142,6 +142,59 @@ export const EmailCampaigns: CollectionConfig = {
       type: 'relationship',
       relationTo: 'tracking-links',
       admin: { description: 'The button goes through this tracking link, so you can count the clicks.' },
+    },
+    {
+      type: 'collapsible',
+      label: 'Email template wording (the pictures and colours stay the same)',
+      admin: { initCollapsed: false, condition: (d) => d?.channel !== 'sms', description: 'Change any words below. Empty boxes use the standard template wording. {{firstName}} works in every box.' },
+      fields: [
+        { name: 'intro', type: 'textarea', label: 'Intro line (under button 1)', admin: { rows: 3, placeholder: 'Nordic Affairs Media is a Sweden-based media organization ...' } },
+        { name: 'headline', type: 'text', label: 'Main headline', admin: { placeholder: 'Authoritative Coverage for High-Level Global Affairs' } },
+        { type: 'row', fields: [
+          { name: 'button2Label', type: 'text', label: 'Button 2 text', admin: { placeholder: 'Access press archive' } },
+          { name: 'button2Url', type: 'text', label: 'Button 2 link', admin: { placeholder: '/en/media' } },
+        ] },
+        { name: 'headline2', type: 'text', label: 'Second headline', admin: { placeholder: 'Elite Sports & Outside Broadcast Operations' } },
+        { name: 'text2', type: 'textarea', label: 'Second text', admin: { rows: 3 } },
+        { type: 'row', fields: [
+          { name: 'button3Label', type: 'text', label: 'Button 3 text', admin: { placeholder: 'View sports wire' } },
+          { name: 'button3Url', type: 'text', label: 'Button 3 link', admin: { placeholder: '/en/events' } },
+        ] },
+      ],
+    },
+    {
+      type: 'collapsible',
+      label: 'Files (pictures, PDF, Word, Excel)',
+      admin: { initCollapsed: false, condition: (d) => d?.channel !== 'sms', description: 'Upload with the button, or pick a file already in the library. To everyone on a list the files become download buttons in the email. To send them as real attachments use "Send to one person" below.' },
+      fields: [
+        {
+          name: 'attachments',
+          type: 'array',
+          label: 'Files',
+          labels: { singular: 'File', plural: 'Files' },
+          fields: [{ name: 'file', type: 'upload', relationTo: ['media', 'documents'], required: true }],
+        },
+      ],
+    },
+    {
+      type: 'collapsible',
+      label: 'Feedback block (stars and tags)',
+      admin: { initCollapsed: true, condition: (d) => d?.channel !== 'sms', description: 'Readers click a star or a tag in the email. Results show in the "Feedback results" box and in Email feedback.' },
+      fields: [
+        { name: 'feedbackOn', type: 'checkbox', label: 'Show the feedback block', defaultValue: true },
+        { name: 'feedbackEyebrow', type: 'text', label: 'Small title', admin: { placeholder: 'Executive media feedback' } },
+        { name: 'feedbackTitle', type: 'text', label: 'Question', admin: { placeholder: 'How was your experience working with our press pool?' } },
+        { name: 'feedbackText', type: 'text', label: 'Line under the question', admin: { placeholder: 'Tap below to submit your rating instantly (1 click):' } },
+        {
+          name: 'tags',
+          type: 'array',
+          label: 'Tags readers can click',
+          admin: { description: 'Empty = the four standard tags.' },
+          fields: [
+            { type: 'row', fields: [{ name: 'emoji', type: 'text', admin: { width: '20%' } }, { name: 'label', type: 'text', required: true }] },
+          ],
+        },
+      ],
     },
     {
       name: 'sendToSubscribers',
@@ -166,6 +219,7 @@ export const EmailCampaigns: CollectionConfig = {
     },
     { name: 'lists', type: 'relationship', relationTo: 'recipient-lists', hasMany: true, label: 'Also send to these lists' },
     { name: 'send', type: 'ui', admin: { components: { Field: '/components/admin/CampaignSend#CampaignSend' } } },
+    { name: 'results', type: 'ui', admin: { components: { Field: '/components/admin/FeedbackResults#FeedbackResults' } } },
     {
       type: 'row',
       admin: { position: 'sidebar' },
@@ -283,4 +337,25 @@ async function salesFor(req: PayloadRequest, slug: unknown): Promise<{ orders: n
   } catch {
     return { orders: 0, revenue: 0 }
   }
+}
+
+/** Star ratings and tag clicks from the "Clean Blue" email. Written only by the website, read by organizers. */
+export const EmailFeedback: CollectionConfig = {
+  slug: 'email-feedback',
+  labels: { singular: 'Email feedback', plural: 'Email feedback' },
+  admin: {
+    group,
+    hidden: hiddenUnless('admin'),
+    useAsTitle: 'email',
+    defaultColumns: ['campaign', 'email', 'kind', 'score', 'tag', 'createdAt'],
+    description: 'Every star and tag a reader clicked in a campaign email.',
+  },
+  access: { read: organizers, create: () => false, update: () => false, delete: organizers },
+  fields: [
+    { name: 'campaign', type: 'relationship', relationTo: 'email-campaigns', required: true, index: true },
+    { name: 'email', type: 'email', required: true },
+    { name: 'kind', type: 'select', required: true, options: [{ label: 'Star rating', value: 'rating' }, { label: 'Tag', value: 'tag' }] },
+    { name: 'score', type: 'number', min: 1, max: 5 },
+    { name: 'tag', type: 'text' },
+  ],
 }

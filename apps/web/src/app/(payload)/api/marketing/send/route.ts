@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { hasRole } from '@/access/roles'
 import { getPayloadClient } from '@/lib/payload'
-import { ctaTarget, renderEmail, renderSms, smsCanReply, resolveRecipients, sendBatch, sendSmsBatch, type Recipient } from '@/lib/marketing'
+import { signedUnsubscribeUrl, ctaTarget, renderEmail, renderSms, smsCanReply, resolveRecipients, sendBatch, sendOne, sendSmsBatch, attachmentList, type Recipient } from '@/lib/marketing'
 import { smsConfigured } from '@/lib/sms'
 
 export const dynamic = 'force-dynamic'
@@ -13,9 +13,9 @@ export async function POST(req: Request) {
   const { user } = await payload.auth({ headers: req.headers })
   if (!user || !hasRole(user, 'admin')) return NextResponse.json({ error: 'Not allowed.' }, { status: 403 })
 
-  const body = (await req.json().catch(() => ({}))) as { id?: string | number; test?: string; count?: boolean }
+  const body = (await req.json().catch(() => ({}))) as { id?: string | number; test?: string; one?: string; preview?: boolean; count?: boolean }
   if (!body.id) return NextResponse.json({ error: 'Save the campaign first.' }, { status: 400 })
-  const c = await payload.findByID({ collection: 'email-campaigns', id: body.id, depth: 0, overrideAccess: true }).catch(() => null)
+  const c = await payload.findByID({ collection: 'email-campaigns', id: body.id, depth: 1, overrideAccess: true }).catch(() => null)
   if (!c) return NextResponse.json({ error: 'Campaign not found.' }, { status: 404 })
   const sms = c.channel === 'sms'
   const settings = (await payload.findGlobal({ slug: 'marketing-settings', overrideAccess: true }).catch(() => ({}))) as Record<string, string | null>
@@ -28,6 +28,27 @@ export async function POST(req: Request) {
   if (sms && !smsConfigured()) return NextResponse.json({ error: 'Text messages are not set up on the website yet (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM).' }, { status: 400 })
   const cta = await ctaTarget(payload, c as never)
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? ''
+
+  if (body.preview) {
+    if (sms) return NextResponse.json({ error: 'Preview is for email.' }, { status: 400 })
+    const r: Recipient = { email: 'preview', firstName: 'Friend', phone: '', unsubscribeUrl: `${site}/en/newsletter` }
+    return NextResponse.json({ ok: true, html: renderEmail(c as never, settings, cta, r, true).html })
+  }
+
+  // One person, with the chosen files attached for real.
+  if (body.one) {
+    if (sms) return NextResponse.json({ error: 'This is for email.' }, { status: 400 })
+    const email = String(body.one).trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: 'That email address looks wrong.' }, { status: 400 })
+    const blocked = await payload.find({ collection: 'subscribers', where: { and: [{ email: { equals: email } }, { status: { equals: 'unsubscribed' } }] }, limit: 1, depth: 0, overrideAccess: true })
+    if (blocked.docs[0]) return NextResponse.json({ error: 'That person unsubscribed. We cannot email them.' }, { status: 400 })
+    const files = attachmentList(c as never)
+    const r: Recipient = { email, firstName: '', phone: '', unsubscribeUrl: signedUnsubscribeUrl(email) }
+    const out = await sendOne(settings, { to: email, ...renderEmail(c as never, settings, cta, r, false, { attachmentsAsLinks: false }), unsubscribeUrl: r.unsubscribeUrl }, files)
+    return out.sent
+      ? NextResponse.json({ ok: true, message: `Sent to ${email}${files.length ? ` with ${files.length} file${files.length === 1 ? '' : 's'} attached` : ''}. The campaign stays a draft.` })
+      : NextResponse.json({ error: out.reason || 'Not sent.' }, { status: 502 })
+  }
 
   if (body.test) {
     const to = String(body.test).trim()

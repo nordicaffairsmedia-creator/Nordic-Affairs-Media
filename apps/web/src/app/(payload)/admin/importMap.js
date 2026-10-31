@@ -30,6 +30,7 @@ import { VideosListUpload as VideosListUpload_3288621a541b25278480fe069bc10c89 }
 import { DocumentsListUpload as DocumentsListUpload_3288621a541b25278480fe069bc10c89 } from '../../../components/admin/FastUploadBanner'
 import { EventMapPicker as EventMapPicker_3da6aa2b0f9f1bf99e6b0ff1a6947281 } from '../../../components/admin/EventMapPicker'
 import { CampaignSend as CampaignSend_0baf36a0e8ed39e20877086d678360ba } from '../../../components/admin/CampaignSend'
+import { FeedbackResults as FeedbackResults_a1b2c3d4e5f60718293a4b5c6d7e8f90 } from '../../../components/admin/FeedbackResults'
 import { AdActions as AdActions_b9ccfdf3fb7e1ca305570811130cd50d } from '../../../components/admin/AdActions'
 import { AccountActions as AccountActions_b564369a058367a481e030d85bf60b21 } from '../../../components/admin/AccountActions'
 import { AbandonedTextHelp as AbandonedTextHelp_62e7b5c1e8f70a6806d39d8bec68c8d6 } from '../../../components/admin/AbandonedTextHelp'
@@ -84,6 +85,7 @@ export const importMap = {
   "/components/admin/FastUploadBanner#DocumentsListUpload": DocumentsListUpload_3288621a541b25278480fe069bc10c89,
   "/components/admin/EventMapPicker#EventMapPicker": EventMapPicker_3da6aa2b0f9f1bf99e6b0ff1a6947281,
   "/components/admin/CampaignSend#CampaignSend": CampaignSend_0baf36a0e8ed39e20877086d678360ba,
+  "/components/admin/FeedbackResults#FeedbackResults": FeedbackResults_a1b2c3d4e5f60718293a4b5c6d7e8f90,
   "/components/admin/AdActions#AdActions": AdActions_b9ccfdf3fb7e1ca305570811130cd50d,
   "/components/admin/AccountActions#AccountActions": AccountActions_b564369a058367a481e030d85bf60b21,
   "/components/admin/AbandonedTextHelp#AbandonedTextHelp": AbandonedTextHelp_62e7b5c1e8f70a6806d39d8bec68c8d6,
