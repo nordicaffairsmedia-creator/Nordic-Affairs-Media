@@ -56,6 +56,8 @@ const schema = z.object({
     z.string().default('Nordic Affairs Media <onboarding@resend.dev>'),
   ),
   SUPPORT_EMAIL: z.preprocess(blank, z.string().optional()),
+  // The organiser's inbox(es): receives the buyer's details for every paid order. Comma list allowed.
+  ORDER_NOTIFY_EMAIL: z.preprocess(blank, z.string().default('nordicaffairsmedia@gmail.com')),
 
   // SMS (Twilio) for the "tickets by SMS" and "event reminder" services. Without all three,
   // those two services are not offered to buyers (so nobody pays for something we cannot send).

@@ -75,6 +75,8 @@ export type Order = {
   createdAt: Date
   paidAt?: Date
   emailSentAt?: Date
+  /** Set when the organiser was emailed the buyer's details (once per order). */
+  ownerNotifiedAt?: Date
   cancelRequestedAt?: Date
 }
 

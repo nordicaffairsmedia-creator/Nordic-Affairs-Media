@@ -96,6 +96,10 @@ export async function fulfilOrder(
     await sendTicketsEmail(order).catch((e) =>
       console.error(`[booking] ${orderId}: tickets issued but email failed`, e),
     )
+    // Organiser copy: who bought what, with contact details. Never undoes the sale.
+    await sendOwnerNotification(order).catch((e) =>
+      console.error(`[booking] ${orderId}: owner notification failed`, e),
+    )
     // "Tickets by SMS" service: a link to the QR tickets. A failure here never undoes the sale.
     if (order.services?.smsTickets && order.phone && smsReady()) {
       const sent = await sendSms(
@@ -190,4 +194,101 @@ ${order.venueName ? `<tr><td style="color:#5c6366">${esc(t.venue)}</td><td>${esc
   })
   if (sent) await orders().updateOne({ _id: order._id }, { $set: { emailSentAt: new Date() } })
   return sent
+}
+
+const sourceLabel = { online: 'Online', comp: 'Guest list (free)', boxoffice: 'Box office' } as const
+
+/**
+ * Emails the organiser (ORDER_NOTIFY_EMAIL) the buyer's details and the order after payment.
+ * Sent once per order; the buyer's own tickets email is separate (sendTicketsEmail).
+ */
+export async function sendOwnerNotification(order: Order): Promise<boolean> {
+  if (order.ownerNotifiedAt) return true
+  const recipients = env.ORDER_NOTIFY_EMAIL.split(',').map((s) => s.trim()).filter(Boolean)
+  if (!recipients.length) return false
+
+  const list = await tickets()
+    .find({ orderId: order._id, status: { $ne: 'cancelled' } })
+    .toArray()
+  const money = (minor: number) => formatMoney(minor, order.currency, intlLocale.en)
+  const when = formatDateTime(order.eventStartsAt, 'en')
+  const link = orderLink(order)
+  const dash = (v?: string) => (v && v.trim() ? v : '-')
+
+  const rows: [string, string][] = [
+    ['Order', order._id + (order.demo ? ' (DEMO, no money taken)' : '')],
+    ['Status', order.status],
+    ['Channel', sourceLabel[order.source ?? 'online']],
+    ['Paid at', order.paidAt ? formatDateTime(order.paidAt, 'en') : '-'],
+    ['Event', order.eventTitleEn],
+    ['Date', when],
+    ['Venue', dash(order.venueName)],
+    ['Buyer name', order.name],
+    ['Buyer email', order.email],
+    ['Phone', dash(order.phone)],
+    ['Country', dash(order.country)],
+    ['Postal code', dash(order.postalCode)],
+    ['Company', dash(order.companyName)],
+    ['Language', order.locale],
+    ['News and offers', order.consent?.marketing ? 'Yes' : 'No'],
+    ['Promoter may contact', order.consent?.promoter ? 'Yes' : 'No'],
+  ]
+  const services = [
+    order.services?.smsTickets ? 'SMS tickets' : '',
+    order.services?.refundProtection ? 'Refund protection' : '',
+    order.services?.reminder ? 'Event reminder' : '',
+  ].filter(Boolean)
+  rows.push(['Extra services', services.length ? services.join(', ') : 'None'])
+  if (order.promoCode) rows.push(['Promo code', order.promoCode])
+  if (order.trackingSource) rows.push(['Came from', order.trackingSource])
+  if (order.note) rows.push(['Note', order.note])
+
+  const lines = order.items.map(
+    (i) => `${i.quantity} x ${i.name} (${money(i.unitPrice)} each)`,
+  )
+  const seats = (order.seatItems ?? []).map((s) => s.label)
+  const totals: [string, string][] = [
+    ['Tickets', String(list.length)],
+    ['Subtotal', money(order.subtotal)],
+    ...(order.discount ? ([['Discount', '-' + money(order.discount)]] as [string, string][]) : []),
+    ...(order.fees ? ([['Fees', money(order.fees)]] as [string, string][]) : []),
+    ...(order.servicesTotal ? ([['Services', money(order.servicesTotal)]] as [string, string][]) : []),
+    ['Total paid', money(order.total)],
+  ]
+
+  const tr = ([k, v]: [string, string]) =>
+    `<tr><td style="color:#5c6366;white-space:nowrap">${esc(k)}</td><td>${esc(v)}</td></tr>`
+  const html = `<!doctype html><html><body style="margin:0;background:#f7f5f0;font-family:Arial,Helvetica,sans-serif;color:#121414">
+<div style="max-width:600px;margin:0 auto;padding:32px 24px">
+<p style="font-size:11px;letter-spacing:3px;color:#835c20;margin:0 0 20px">NORDIC AFFAIRS MEDIA${order.demo ? ' · DEMO' : ''}</p>
+<h1 style="font-family:Georgia,serif;font-weight:normal;font-size:24px;margin:0 0 6px">New booking: ${esc(order.eventTitleEn)}</h1>
+<p style="margin:0 0 18px;color:#5c6366">${esc(order.name)} booked ${list.length} ticket${list.length === 1 ? '' : 's'} (${esc(money(order.total))}).</p>
+<table style="width:100%;border-top:1px solid #dcd8cf;border-bottom:1px solid #dcd8cf;font-size:14px" cellpadding="6">${rows.map(tr).join('')}</table>
+<h2 style="font-size:15px;margin:22px 0 6px">Tickets</h2>
+<ul style="font-size:14px;line-height:1.6;padding-left:18px;margin:0">${lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
+${seats.length ? `<p style="font-size:14px">Seats: ${esc(seats.join(', '))}</p>` : ''}
+<table style="width:100%;border-top:1px solid #dcd8cf;margin-top:14px;font-size:14px" cellpadding="6">${totals.map(tr).join('')}</table>
+<p style="font-size:13px;color:#5c6366;margin-top:22px">The buyer has received their tickets by email. <a href="${esc(link)}">Open the booking</a>.</p>
+</div></body></html>`
+  const text = [
+    `New booking: ${order.eventTitleEn}`,
+    '',
+    ...rows.map(([k, v]) => `${k}: ${v}`),
+    '',
+    'Tickets:',
+    ...lines.map((l) => `- ${l}`),
+    ...(seats.length ? [`Seats: ${seats.join(', ')}`] : []),
+    '',
+    ...totals.map(([k, v]) => `${k}: ${v}`),
+    '',
+    `Open the booking: ${link}`,
+  ].join('\n')
+
+  const subject = `${order.demo ? '[DEMO] ' : ''}New booking ${order._id}: ${order.eventTitleEn} (${list.length} × ${order.name})`
+  let any = false
+  for (const to of recipients) {
+    if (await sendEmail({ to, subject, html, text })) any = true
+  }
+  if (any) await orders().updateOne({ _id: order._id }, { $set: { ownerNotifiedAt: new Date() } })
+  return any
 }
