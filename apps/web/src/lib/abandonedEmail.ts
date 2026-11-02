@@ -1,4 +1,9 @@
-import { escapeHtml } from '@/lib/mail'
+/** Local copy (lib/mail.ts is server-only, and the live preview in the admin runs in the browser). */
+const escapeHtml = (v: string) =>
+  v.replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c,
+  )
 
 /**
  * The "left the checkout" email, as the buyer gets it. The booking server (apps/api/src/abandoned.ts) uses the same rules.
