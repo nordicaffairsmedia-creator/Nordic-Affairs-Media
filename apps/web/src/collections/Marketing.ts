@@ -201,6 +201,8 @@ export const EmailCampaigns: CollectionConfig = {
           type: 'select',
           defaultValue: 'draft',
           admin: { readOnly: true },
+          // A duplicated campaign starts as a fresh draft, so it can be sent again.
+          hooks: { beforeDuplicate: [() => 'draft'] },
           options: [
             { label: 'Draft', value: 'draft' },
             { label: 'Sending', value: 'sending' },
@@ -209,11 +211,11 @@ export const EmailCampaigns: CollectionConfig = {
         },
       ],
     },
-    { name: 'sentAt', type: 'date', admin: { readOnly: true, position: 'sidebar', date: { pickerAppearance: 'dayAndTime' } } },
-    { name: 'recipientCount', type: 'number', defaultValue: 0, admin: { readOnly: true, position: 'sidebar' } },
-    { name: 'sentCount', type: 'number', defaultValue: 0, label: 'Sent', admin: { readOnly: true, position: 'sidebar' } },
-    { name: 'failedCount', type: 'number', defaultValue: 0, label: 'Failed', admin: { readOnly: true, position: 'sidebar' } },
-    { name: 'clicks', type: 'number', defaultValue: 0, admin: { readOnly: true, position: 'sidebar' } },
+    { name: 'sentAt', type: 'date', hooks: { beforeDuplicate: [() => null] }, admin: { readOnly: true, position: 'sidebar', date: { pickerAppearance: 'dayAndTime' } } },
+    { name: 'recipientCount', type: 'number', defaultValue: 0, hooks: { beforeDuplicate: [() => 0] }, admin: { readOnly: true, position: 'sidebar' } },
+    { name: 'sentCount', type: 'number', defaultValue: 0, label: 'Sent', hooks: { beforeDuplicate: [() => 0] }, admin: { readOnly: true, position: 'sidebar' } },
+    { name: 'failedCount', type: 'number', defaultValue: 0, label: 'Failed', hooks: { beforeDuplicate: [() => 0] }, admin: { readOnly: true, position: 'sidebar' } },
+    { name: 'clicks', type: 'number', defaultValue: 0, hooks: { beforeDuplicate: [() => 0] }, admin: { readOnly: true, position: 'sidebar' } },
   ],
 }
 
