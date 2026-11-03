@@ -425,4 +425,21 @@ export const sv: Dictionary = {
   noGalleries: 'Inga gallerier publicerade ännu.',
   photos: 'bilder',
   shareEvent: 'Dela evenemanget',
+  // Register My Interest (DRAFT translation, to be reviewed by a native speaker)
+  interestTitle: 'Anmäl ditt intresse',
+  interestFree: 'Gratis anmälan · Ingen betalning krävs',
+  interestDisclaimer:
+    'Den här konserten är i planeringsstadiet. Datum, plats och artistens medverkan måste bekräftas. Anmälan reserverar ingen biljett.',
+  interestName: 'Fullständigt namn',
+  interestEmail: 'E-post',
+  interestPhone: 'Kontaktnummer',
+  interestCity: 'Ort/Stad',
+  interestCategory: 'Önskad biljettkategori',
+  interestChoose: 'Välj kategori',
+  interestConsent: 'Jag godkänner att Nordic Affairs Media kontaktar mig om detta evenemang och accepterar integritetspolicyn.',
+  interestCta: 'Anmäl mitt intresse',
+  interestThanks:
+    'Tack! Ditt intresse är registrerat. Vi mejlar dig när konsertinformation och biljettinformation finns tillgänglig. Dela gärna den här sidan med vänner som vill komma.',
+  interestEmailSubject: 'Ditt intresse är registrerat',
+  interestError: 'Din anmälan kunde inte skickas. Kontrollera fälten och försök igen.',
 }

@@ -24,7 +24,14 @@ import { Publications } from './collections/Publications'
 import { Events } from './collections/Events'
 import { PromoCodes } from './collections/PromoCodes'
 import { Pages, Redirects } from './collections/Pages'
-import { AuditLog, Enquiries, Galleries, Organizers, Subscribers } from './collections/Engagement'
+import {
+  AuditLog,
+  Enquiries,
+  Galleries,
+  InterestRegistrations,
+  Organizers,
+  Subscribers,
+} from './collections/Engagement'
 import { Homepage } from './globals/Homepage'
 import { Navigation } from './globals/Navigation'
 import { ArtistProfile } from './globals/ArtistProfile'
@@ -255,6 +262,7 @@ export default buildConfig({
     EventCategories,
     Enquiries,
     Subscribers,
+    InterestRegistrations,
     EmailCampaigns,
     EmailFeedback,
     EmailFiles,

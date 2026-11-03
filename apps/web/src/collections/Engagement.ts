@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 import { editors, hasRole, organizers, staff, hiddenUnless } from '@/access/roles'
 import { seoFields, slugField } from '@/fields/common'
 import { revalidateOnChange, revalidateOnDelete } from '@/lib/revalidate'
+import { INTEREST_CURRENCY, interestCategories } from '@/lib/interestCategories'
 
 /** Messages from the contact form (PRD W-08). Only staff can read them. */
 export const Enquiries: CollectionConfig = {
@@ -91,6 +92,57 @@ export const Subscribers: CollectionConfig = {
     { name: 'token', type: 'text', index: true, admin: { hidden: true } },
     { name: 'consentAt', type: 'date', admin: { readOnly: true } },
     { name: 'confirmedAt', type: 'date', admin: { readOnly: true } },
+  ],
+}
+
+/**
+ * "Register My Interest" sign-ups for events that are still in the planning stage
+ * (sales status "Announced"). Free, no payment, and no ticket is reserved. The organiser
+ * uses this list to gauge demand and to email people when tickets open.
+ */
+export const InterestRegistrations: CollectionConfig = {
+  slug: 'interest-registrations',
+  admin: {
+    group: 'Inbox',
+    useAsTitle: 'name',
+    defaultColumns: ['name', 'email', 'phone', 'city', 'category', 'event', 'createdAt'],
+    description:
+      'People who registered interest in an upcoming event. This is not a ticket booking. Use the Export button above the list for a spreadsheet (CSV).',
+  },
+  access: {
+    read: staff,
+    create: () => false, // only through the website form (server-side)
+    update: staff,
+    delete: staff,
+  },
+  fields: [
+    { name: 'event', type: 'relationship', relationTo: 'events', required: true, index: true },
+    { name: 'name', type: 'text', required: true },
+    { name: 'email', type: 'email', required: true, index: true },
+    { name: 'phone', type: 'text', required: true },
+    { name: 'city', type: 'text', required: true },
+    {
+      name: 'category',
+      type: 'select',
+      required: true,
+      options: interestCategories.map((c) => ({
+        label: `${c.label}${c.note ? ` (${c.note})` : ''} · ${c.price} ${INTEREST_CURRENCY}`,
+        value: c.value,
+      })),
+    },
+    { name: 'locale', type: 'text', admin: { readOnly: true } },
+    {
+      name: 'consentAt',
+      type: 'date',
+      admin: { readOnly: true, description: 'When the visitor agreed to the privacy notice.' },
+    },
+    {
+      name: 'emailSent',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: { readOnly: true, description: 'Whether the thank-you email was delivered.' },
+    },
+    { name: 'internalNote', type: 'textarea' },
   ],
 }
 

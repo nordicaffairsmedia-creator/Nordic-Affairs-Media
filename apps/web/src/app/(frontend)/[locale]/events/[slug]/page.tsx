@@ -15,6 +15,8 @@ import { buildMetadata } from '@/lib/seo'
 import { ShareLinks } from '@/components/editorial/ShareLinks'
 import { ApiWarmup } from '@/components/account/ApiWarmup'
 import { MediaImage } from '@/components/ui/MediaImage'
+import { InterestForm } from '@/components/events/InterestForm'
+import { INTEREST_CURRENCY, interestCategories } from '@/lib/interestCategories'
 import { Eyebrow, JsonLd, SectionHeading } from '@/components/ui/primitives'
 
 export const dynamicParams = true
@@ -168,6 +170,41 @@ export default async function HubEventPage({ params }: Props) {
                   >
                     {t.hubGetTickets}
                   </Link>
+                </>
+              ) : state === 'announced' ? (
+                <>
+                  <p data-testid="ticket-block-reason" className="mt-3 font-ui text-caption font-semibold text-alert">
+                    {t[block ?? 'hubReasonAnnounced']}
+                  </p>
+                  <InterestForm
+                    eventId={String(event.id)}
+                    locale={locale}
+                    privacyHref={href(locale, '/privacy')}
+                    pageUrl={pageUrl}
+                    eventTitle={event.title}
+                    options={interestCategories.map((c) => ({
+                      value: c.value,
+                      text: `${c.label}${c.note ? ` (${c.note})` : ''} · ${formatPrice(c.price, INTEREST_CURRENCY, locale)}`,
+                    }))}
+                    labels={{
+                      title: t.interestTitle,
+                      free: t.interestFree,
+                      disclaimer: t.interestDisclaimer,
+                      name: t.interestName,
+                      email: t.interestEmail,
+                      phone: t.interestPhone,
+                      city: t.interestCity,
+                      category: t.interestCategory,
+                      choose: t.interestChoose,
+                      consent: t.interestConsent,
+                      privacyPolicy: t.privacyPolicy,
+                      cta: t.interestCta,
+                      processing: t.processing,
+                      thanks: t.interestThanks,
+                      error: t.interestError,
+                      shareEvent: t.shareEvent,
+                    }}
+                  />
                 </>
               ) : (
                 <>

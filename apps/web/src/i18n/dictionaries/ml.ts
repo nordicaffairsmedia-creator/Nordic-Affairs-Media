@@ -426,4 +426,21 @@ export const ml: Dictionary = {
   noGalleries: 'ഇതുവരെ ഗാലറികൾ പ്രസിദ്ധീകരിച്ചിട്ടില്ല.',
   photos: 'ചിത്രങ്ങൾ',
   shareEvent: 'ഈ പരിപാടി പങ്കിടുക',
+  // Register My Interest: English placeholder, TO BE TRANSLATED
+  interestTitle: 'Register your interest',
+  interestFree: 'Free registration · No payment required',
+  interestDisclaimer:
+    'This concert is in the planning stage. The date, venue and artist appearance are subject to confirmation. Registration does not reserve a ticket.',
+  interestName: 'Full name',
+  interestEmail: 'Email',
+  interestPhone: 'Contact number',
+  interestCity: 'Town/City',
+  interestCategory: 'Preferred ticket category',
+  interestChoose: 'Choose a category',
+  interestConsent: 'I agree that Nordic Affairs Media may contact me about this event and I accept the privacy policy.',
+  interestCta: 'Register My Interest',
+  interestThanks:
+    "Thank you! Your interest has been registered. We'll email you when concert details and ticket information are available. Please share this page with friends who may wish to attend.",
+  interestEmailSubject: 'Your interest is registered',
+  interestError: 'Your registration could not be sent. Please check the fields and try again.',
 }
