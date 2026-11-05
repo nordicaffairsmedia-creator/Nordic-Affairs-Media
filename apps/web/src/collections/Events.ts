@@ -34,6 +34,15 @@ export const Events: CollectionConfig = {
           label: 'Details',
           fields: [
             { name: 'poster', type: 'upload', relationTo: 'media', required: true },
+            {
+              name: 'appPoster',
+              type: 'upload',
+              relationTo: 'media',
+              admin: {
+                description:
+                  'Optional. Poster used only in the ticketing mobile app (any shape; the whole image is shown, nothing is cropped). The website keeps using the poster above. Leave empty to use the website poster in the app too.',
+              },
+            },
             { name: 'trailerUrl', type: 'text' },
             { name: 'description', type: 'richText', localized: true },
             {
