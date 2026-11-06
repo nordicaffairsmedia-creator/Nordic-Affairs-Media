@@ -44,6 +44,16 @@ export const Media: CollectionConfig = {
     },
     { name: 'caption', type: 'text', localized: true },
     { name: 'showOnMediaPage', type: 'checkbox', defaultValue: false, admin: { description: 'Tick to show this picture on the public Media page. Unticked pictures stay in the library only.' } },
+    {
+      name: 'showInApp',
+      label: 'Show in the app as a past event',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        description:
+          'Tick to show this picture in the ticketing mobile app, in its "Past Events" section (a showcase, not for booking). Put the event name and year in Caption. The website is not affected.',
+      },
+    },
     { name: 'credit', type: 'text', admin: { description: 'Photographer or source.' } },
     {
       name: 'sourceUrl',
