@@ -23,6 +23,8 @@ const titleFromFile: CollectionBeforeChangeHook = ({ data, originalDoc }) => {
 
 /** The ticked track is the only one that plays: untick every other track, then refresh the website. */
 const onlyOneTrackPlays: CollectionAfterChangeHook = async ({ doc, req }) => {
+  // The updates below save other tracks too: do not let those saves run this rule again.
+  if (req.context?.musicSync) return doc
   if (doc?.active) {
     await req.payload.update({
       collection: 'music',
@@ -30,6 +32,18 @@ const onlyOneTrackPlays: CollectionAfterChangeHook = async ({ doc, req }) => {
       data: { active: false },
       depth: 0,
       req,
+      context: { musicSync: true },
+    })
+  }
+  // Same rule for the ticketing mobile app: only one track is ticked "Play in the app".
+  if (doc?.playInApp) {
+    await req.payload.update({
+      collection: 'music',
+      where: { and: [{ playInApp: { equals: true } }, { id: { not_equals: doc.id } }] },
+      data: { playInApp: false },
+      depth: 0,
+      req,
+      context: { musicSync: true },
     })
   }
   purge()
@@ -76,6 +90,17 @@ export const Music: CollectionConfig = {
         position: 'sidebar',
         description:
           'Ticked: this track is the background music of the website. Only one track plays, so ticking it unticks the others. Untick it (with no other track ticked) to switch the music off.',
+      },
+    },
+    {
+      name: 'playInApp',
+      label: 'Play in the ticketing app',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        position: 'sidebar',
+        description:
+          'Ticked: this track is the background music of the ticketing mobile app (separate from the website). Only one track plays in the app, so ticking it unticks the others. Untick it (with no other track ticked) to switch the app music off.',
       },
     },
   ],
