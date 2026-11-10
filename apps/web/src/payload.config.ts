@@ -22,6 +22,7 @@ import { Authors } from './collections/Authors'
 import { Articles } from './collections/Articles'
 import { Publications } from './collections/Publications'
 import { Events } from './collections/Events'
+import { AppRegistrations } from './collections/AppRegistrations'
 import { PromoCodes } from './collections/PromoCodes'
 import { Pages, Redirects } from './collections/Pages'
 import {
@@ -263,6 +264,7 @@ export default buildConfig({
     Enquiries,
     Subscribers,
     InterestRegistrations,
+    AppRegistrations,
     EmailCampaigns,
     EmailFeedback,
     EmailFiles,
