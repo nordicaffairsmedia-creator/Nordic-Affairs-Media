@@ -28,6 +28,15 @@ export const Events: CollectionConfig = {
     { name: 'title', type: 'text', required: true, localized: true },
     { name: 'summary', type: 'textarea', localized: true },
     {
+      name: 'community',
+      type: 'relationship',
+      relationTo: 'communities',
+      admin: {
+        position: 'sidebar',
+        description: 'Optional. Shows this event on that community page in the ticketing app (for example a Tamil concert on the Tamil page).',
+      },
+    },
+    {
       type: 'tabs',
       tabs: [
         {

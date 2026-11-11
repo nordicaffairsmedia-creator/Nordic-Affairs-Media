@@ -23,6 +23,7 @@ import { Articles } from './collections/Articles'
 import { Publications } from './collections/Publications'
 import { Events } from './collections/Events'
 import { AppRegistrations } from './collections/AppRegistrations'
+import { Communities, CommunityJoins, CommunitySongs } from './collections/Communities'
 import { PromoCodes } from './collections/PromoCodes'
 import { Pages, Redirects } from './collections/Pages'
 import {
@@ -155,6 +156,8 @@ const plugins: Plugin[] = process.env.S3_BUCKET
           videos: publicFiles,
           // Background music: public too, so every visitor's browser loads it straight from Cloudflare.
           music: publicFiles,
+          // Songs of the community pages in the ticketing app.
+          'community-songs': publicFiles,
         },
         bucket: process.env.S3_BUCKET,
         // Vercel refuses request bodies over 4.5 MB, so there the admin uploads photos and
@@ -265,6 +268,9 @@ export default buildConfig({
     Subscribers,
     InterestRegistrations,
     AppRegistrations,
+    Communities,
+    CommunitySongs,
+    CommunityJoins,
     EmailCampaigns,
     EmailFeedback,
     EmailFiles,
