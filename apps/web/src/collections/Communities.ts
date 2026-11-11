@@ -150,8 +150,8 @@ export const CommunityJoins: CollectionConfig = {
   admin: {
     group: 'Communities',
     useAsTitle: 'name',
-    defaultColumns: ['community', 'name', 'email', 'createdAt'],
-    description: 'People who joined a community in the ticketing app (one row per person and community).',
+    defaultColumns: ['community', 'kind', 'name', 'email', 'createdAt'],
+    description: 'People who joined a community or an organisation in the ticketing app (one row per person and community or organisation).',
   },
   access: { read: staff, create: () => true, update: staff, delete: staff },
   hooks: {
@@ -165,15 +165,98 @@ export const CommunityJoins: CollectionConfig = {
         if (name.length < 2) throw new Error('Please enter a name.')
         if (!EMAIL.test(email)) throw new Error('Please enter a valid email address.')
         if (!slug) throw new Error('Missing community.')
-        return { name, email, community: community || slug, communitySlug: slug, key: `${email}|${slug}` }
+        const kind = data.kind === 'organisation' ? 'organisation' : 'community'
+        return {
+          name,
+          email,
+          kind,
+          community: community || slug,
+          communitySlug: slug,
+          key: kind === 'organisation' ? `${email}|org:${slug}` : `${email}|${slug}`,
+        }
       },
     ],
   },
   fields: [
-    { name: 'community', type: 'text', required: true, index: true },
+    {
+      name: 'kind',
+      label: 'Type',
+      type: 'select',
+      defaultValue: 'community',
+      options: [
+        { label: 'Community', value: 'community' },
+        { label: 'Organisation', value: 'organisation' },
+      ],
+    },
+    { name: 'community', label: 'Community / organisation', type: 'text', required: true, index: true },
     { name: 'communitySlug', type: 'text', index: true, admin: { hidden: true } },
     { name: 'name', type: 'text', required: true },
     { name: 'email', type: 'email', required: true },
     { name: 'key', type: 'text', unique: true, index: true, admin: { hidden: true } },
+  ],
+}
+
+/**
+ * Associations and clubs shown in the ticketing app (for example a Kerala association): each has its own page
+ * with a description, announcement, events, a Join button and a group chat link. Works like Communities.
+ */
+export const Organisations: CollectionConfig = {
+  slug: 'organisations',
+  labels: { singular: 'Organisation', plural: 'Organisations' },
+  defaultSort: 'order',
+  admin: {
+    group: 'Communities',
+    useAsTitle: 'name',
+    defaultColumns: ['name', 'slug', 'active', 'order'],
+    description:
+      'Associations and clubs shown on the Organisations tab of the ticketing app. Create New: add the name, a short description and the group chat link, then Save. It appears in the app straight away.',
+  },
+  access: { read: anyone, create: staff, update: staff, delete: staff },
+  hooks: { beforeValidate: [makeSlug] },
+  fields: [
+    { name: 'name', type: 'text', required: true, admin: { description: 'For example: Kerala Association Stockholm.' } },
+    {
+      name: 'slug',
+      type: 'text',
+      unique: true,
+      index: true,
+      admin: { position: 'sidebar', description: 'Created from the name. Do not change it after the organisation is in use.' },
+    },
+    { name: 'description', type: 'textarea', admin: { description: 'One or two lines shown at the top of the organisation page.' } },
+    {
+      name: 'cover',
+      type: 'upload',
+      relationTo: 'media',
+      admin: { description: 'Optional picture for the top of the page. Best: wide, 1600 x 900 pixels.' },
+    },
+    {
+      name: 'songs',
+      label: 'Songs',
+      type: 'upload',
+      relationTo: 'community-songs',
+      hasMany: true,
+      admin: {
+        description: 'Optional. Songs played while this page is open, one after another in a loop. Upload them first under "Community songs".',
+      },
+    },
+    {
+      name: 'groupLink',
+      label: 'Group chat link',
+      type: 'text',
+      admin: { description: 'WhatsApp or Telegram group invite link. Opens from the "Group chat" button.' },
+      validate: (v: unknown) => {
+        if (!v) return true
+        return /^https:\/\/[^\s]+$/.test(String(v)) || 'Use the full https:// link of the group.'
+      },
+    },
+    { name: 'announcement', type: 'textarea', admin: { description: 'Optional short message shown on the page. Empty = nothing shown.' } },
+    { name: 'order', type: 'number', defaultValue: 10, admin: { position: 'sidebar', description: 'Smaller numbers come first.' } },
+    {
+      name: 'active',
+      label: 'Show in the app',
+      type: 'checkbox',
+      defaultValue: true,
+      admin: { position: 'sidebar', description: 'Untick to hide this organisation in the app.' },
+    },
   ],
 }

@@ -37,6 +37,15 @@ export const Events: CollectionConfig = {
       },
     },
     {
+      name: 'organisation',
+      type: 'relationship',
+      relationTo: 'organisations',
+      admin: {
+        position: 'sidebar',
+        description: 'Optional. Shows this event on that organisation page in the ticketing app.',
+      },
+    },
+    {
       type: 'tabs',
       tabs: [
         {
