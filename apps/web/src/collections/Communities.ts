@@ -1,4 +1,4 @@
-import type { CollectionBeforeChangeHook, CollectionBeforeValidateHook, CollectionConfig } from 'payload'
+import type { CollectionBeforeChangeHook, CollectionBeforeValidateHook, CollectionConfig, FieldAccess } from 'payload'
 import { anyone, hasRole, staff } from '@/access/roles'
 
 /**
@@ -206,7 +206,8 @@ const httpsLink = (v: unknown) => {
   if (!v) return true
   return /^https:\/\/[^\s]+$/.test(String(v)) || 'Use the full link, starting with https://'
 }
-const staffOnly = { create: ({ req }: { req: { user?: unknown } }) => Boolean(req.user), read: ({ req }: { req: { user?: unknown } }) => Boolean(req.user), update: ({ req }: { req: { user?: unknown } }) => Boolean(req.user) }
+const signedIn: FieldAccess = ({ req }) => Boolean(req.user)
+const staffOnly = { create: signedIn, read: signedIn, update: signedIn }
 
 /**
  * Staff create and edit organisations here as before. An organisation can also register ITSELF in the app
@@ -219,9 +220,8 @@ const prepareOrganisation: CollectionBeforeValidateHook = ({ data, req, operatio
     const name = clean(data.name, 120)
     if (name.length < 2) throw new Error('Please enter the organisation name.')
     const contactName = clean(data.contactName, 80)
-    if (contactName.length < 2) throw new Error('Please enter a contact person.')
     const contactEmail = clean(data.contactEmail, 200).toLowerCase()
-    if (!EMAIL.test(contactEmail)) throw new Error('Please enter a valid contact email.')
+    if (contactEmail && !EMAIL.test(contactEmail)) throw new Error('Please enter a valid contact email.')
     return {
       name,
       slug: `${slugify(name) || 'organisation'}-${Math.random().toString(36).slice(2, 6)}`,
@@ -329,7 +329,7 @@ export const Organisations: CollectionConfig = {
       label: 'Registered in the app',
       type: 'checkbox',
       defaultValue: false,
-      access: { create: () => true, read: ({ req }) => Boolean(req.user), update: ({ req }) => Boolean(req.user) },
+      access: { create: () => true, read: signedIn, update: signedIn },
       admin: { position: 'sidebar', readOnly: true, description: 'Ticked when the organisation registered itself in the app.' },
     },
     { name: 'order', type: 'number', defaultValue: 10, admin: { position: 'sidebar', description: 'Smaller numbers come first.' } },
