@@ -154,6 +154,37 @@ export const CommunityJoins: CollectionConfig = {
     description: 'People who joined a community or an organisation in the ticketing app (one row per person and community or organisation).',
   },
   access: { read: staff, create: () => true, update: staff, delete: staff },
+  endpoints: [
+    {
+      // Members of a community see who else joined: first names only. Emails never leave the server,
+      // and the caller must be a member themselves (their email is checked against the join list).
+      path: '/members',
+      method: 'get',
+      handler: async (req) => {
+        const q = (req.query ?? {}) as Record<string, unknown>
+        const kind = q.kind === 'organisation' ? 'organisation' : 'community'
+        const slug = slugify(String(q.slug ?? ''))
+        const email = String(q.email ?? '').trim().toLowerCase()
+        if (!slug || !EMAIL.test(email)) return Response.json({ error: 'Bad request' }, { status: 400 })
+        const key = kind === 'organisation' ? `${email}|org:${slug}` : `${email}|${slug}`
+        const me = await req.payload.find({ collection: 'community-joins', where: { key: { equals: key } }, limit: 1, depth: 0, overrideAccess: true })
+        if (!me.totalDocs) return Response.json({ error: 'Join first' }, { status: 403 })
+        const all = await req.payload.find({
+          collection: 'community-joins',
+          where: { and: [{ communitySlug: { equals: slug } }, { kind: { equals: kind } }] },
+          limit: 200,
+          depth: 0,
+          sort: '-createdAt',
+          overrideAccess: true,
+        })
+        const members = all.docs.map((d) => {
+          const first = String((d as { name?: string }).name ?? '').trim().split(/\s+/)[0] ?? ''
+          return first.slice(0, 30)
+        }).filter(Boolean)
+        return Response.json({ count: all.totalDocs, members })
+      },
+    },
+  ],
   hooks: {
     beforeValidate: [
       ({ data, operation }) => {
