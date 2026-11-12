@@ -1,5 +1,5 @@
 import type { CollectionBeforeChangeHook, CollectionBeforeValidateHook, CollectionConfig } from 'payload'
-import { anyone, staff } from '@/access/roles'
+import { anyone, hasRole, staff } from '@/access/roles'
 
 /**
  * Communities of the ticketing mobile app (Malayali, Tamil, Telugu, Kannada, North Indian ...).
@@ -196,9 +196,57 @@ export const CommunityJoins: CollectionConfig = {
   ],
 }
 
+/** Safe text from what an organisation typed in the app (anyone can send it, so nothing is trusted). */
+const clean = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max)
+const cleanLink = (v: unknown) => {
+  const s = clean(v, 300)
+  return /^https:\/\/[^\s]+$/.test(s) ? s : ''
+}
+const httpsLink = (v: unknown) => {
+  if (!v) return true
+  return /^https:\/\/[^\s]+$/.test(String(v)) || 'Use the full link, starting with https://'
+}
+const staffOnly = { create: ({ req }: { req: { user?: unknown } }) => Boolean(req.user), read: ({ req }: { req: { user?: unknown } }) => Boolean(req.user), update: ({ req }: { req: { user?: unknown } }) => Boolean(req.user) }
+
+/**
+ * Staff create and edit organisations here as before. An organisation can also register ITSELF in the app
+ * (Organisations tab -> Register your organisation): that creates a profile that is NOT shown until you tick
+ * "Show in the app". Everything it types is cleaned here, and its contact details stay private to staff.
+ */
+const prepareOrganisation: CollectionBeforeValidateHook = ({ data, req, operation }) => {
+  if (!data) return data
+  if (operation === 'create' && !req.user) {
+    const name = clean(data.name, 120)
+    if (name.length < 2) throw new Error('Please enter the organisation name.')
+    const contactName = clean(data.contactName, 80)
+    if (contactName.length < 2) throw new Error('Please enter a contact person.')
+    const contactEmail = clean(data.contactEmail, 200).toLowerCase()
+    if (!EMAIL.test(contactEmail)) throw new Error('Please enter a valid contact email.')
+    return {
+      name,
+      slug: `${slugify(name) || 'organisation'}-${Math.random().toString(36).slice(2, 6)}`,
+      description: clean(data.description, 600),
+      city: clean(data.city, 80),
+      website: cleanLink(data.website),
+      youtube: cleanLink(data.youtube),
+      instagram: cleanLink(data.instagram),
+      facebook: cleanLink(data.facebook),
+      groupLink: cleanLink(data.groupLink),
+      contactName,
+      contactEmail,
+      submittedFromApp: true,
+      active: false,
+      order: 100,
+    }
+  }
+  const given = typeof data.slug === 'string' ? slugify(data.slug) : ''
+  const fromName = typeof data.name === 'string' ? slugify(data.name) : ''
+  return { ...data, slug: given || fromName }
+}
+
 /**
  * Associations and clubs shown in the ticketing app (for example a Kerala association): each has its own page
- * with a description, announcement, events, a Join button and a group chat link. Works like Communities.
+ * with a description, links (website, YouTube ...), announcement, events, a Join button and a group chat link.
  */
 export const Organisations: CollectionConfig = {
   slug: 'organisations',
@@ -207,12 +255,18 @@ export const Organisations: CollectionConfig = {
   admin: {
     group: 'Communities',
     useAsTitle: 'name',
-    defaultColumns: ['name', 'slug', 'active', 'order'],
+    defaultColumns: ['name', 'city', 'active', 'submittedFromApp', 'createdAt'],
     description:
-      'Associations and clubs shown on the Organisations tab of the ticketing app. Create New: add the name, a short description and the group chat link, then Save. It appears in the app straight away.',
+      'Associations and clubs of the ticketing app. Organisations can register themselves in the app: their profile arrives here hidden ("Show in the app" is unticked). Open it, check it, add a cover picture if you like, then tick "Show in the app" and Save to publish it. You can also create one yourself with Create New.',
   },
-  access: { read: anyone, create: staff, update: staff, delete: staff },
-  hooks: { beforeValidate: [makeSlug] },
+  access: {
+    // the public sees only organisations ticked "Show in the app"; staff see everything (including new registrations)
+    read: ({ req }) => (hasRole(req.user, 'admin', 'editor') ? true : { active: { equals: true } }),
+    create: () => true, // the app registration form (cleaned in the hook above)
+    update: staff,
+    delete: staff,
+  },
+  hooks: { beforeValidate: [prepareOrganisation] },
   fields: [
     { name: 'name', type: 'text', required: true, admin: { description: 'For example: Kerala Association Stockholm.' } },
     {
@@ -222,11 +276,35 @@ export const Organisations: CollectionConfig = {
       index: true,
       admin: { position: 'sidebar', description: 'Created from the name. Do not change it after the organisation is in use.' },
     },
-    { name: 'description', type: 'textarea', admin: { description: 'One or two lines shown at the top of the organisation page.' } },
+    { name: 'description', type: 'textarea', admin: { description: 'A few lines about the organisation, shown at the top of its page.' } },
+    { name: 'city', type: 'text', admin: { description: 'Optional, for example Stockholm.' } },
+    {
+      type: 'row',
+      fields: [
+        { name: 'website', label: 'Website', type: 'text', validate: httpsLink, admin: { width: '50%', description: 'https://...' } },
+        { name: 'youtube', label: 'YouTube', type: 'text', validate: httpsLink, admin: { width: '50%', description: 'https://...' } },
+      ],
+    },
+    {
+      type: 'row',
+      fields: [
+        { name: 'instagram', label: 'Instagram', type: 'text', validate: httpsLink, admin: { width: '50%', description: 'https://...' } },
+        { name: 'facebook', label: 'Facebook', type: 'text', validate: httpsLink, admin: { width: '50%', description: 'https://...' } },
+      ],
+    },
+    {
+      name: 'groupLink',
+      label: 'Group chat link',
+      type: 'text',
+      validate: httpsLink,
+      admin: { description: 'WhatsApp or Telegram group invite link. Opens from the "Group chat" button.' },
+    },
+    { name: 'announcement', type: 'textarea', access: { create: staffOnly.create, update: staffOnly.update }, admin: { description: 'Optional short message shown on the page. Empty = nothing shown.' } },
     {
       name: 'cover',
       type: 'upload',
       relationTo: 'media',
+      access: { create: staffOnly.create, update: staffOnly.update },
       admin: { description: 'Optional picture for the top of the page. Best: wide, 1600 x 900 pixels.' },
     },
     {
@@ -235,28 +313,32 @@ export const Organisations: CollectionConfig = {
       type: 'upload',
       relationTo: 'community-songs',
       hasMany: true,
-      admin: {
-        description: 'Optional. Songs played while this page is open, one after another in a loop. Upload them first under "Community songs".',
-      },
+      access: { create: staffOnly.create, update: staffOnly.update },
+      admin: { description: 'Optional. Songs played while this page is open. Upload them first under "Community songs".' },
     },
     {
-      name: 'groupLink',
-      label: 'Group chat link',
-      type: 'text',
-      admin: { description: 'WhatsApp or Telegram group invite link. Opens from the "Group chat" button.' },
-      validate: (v: unknown) => {
-        if (!v) return true
-        return /^https:\/\/[^\s]+$/.test(String(v)) || 'Use the full https:// link of the group.'
-      },
+      type: 'collapsible',
+      label: 'Contact person (private: only staff can see this)',
+      fields: [
+        { name: 'contactName', type: 'text', access: staffOnly },
+        { name: 'contactEmail', type: 'email', access: staffOnly },
+      ],
     },
-    { name: 'announcement', type: 'textarea', admin: { description: 'Optional short message shown on the page. Empty = nothing shown.' } },
+    {
+      name: 'submittedFromApp',
+      label: 'Registered in the app',
+      type: 'checkbox',
+      defaultValue: false,
+      access: { create: () => true, read: ({ req }) => Boolean(req.user), update: ({ req }) => Boolean(req.user) },
+      admin: { position: 'sidebar', readOnly: true, description: 'Ticked when the organisation registered itself in the app.' },
+    },
     { name: 'order', type: 'number', defaultValue: 10, admin: { position: 'sidebar', description: 'Smaller numbers come first.' } },
     {
       name: 'active',
       label: 'Show in the app',
       type: 'checkbox',
       defaultValue: true,
-      admin: { position: 'sidebar', description: 'Untick to hide this organisation in the app.' },
+      admin: { position: 'sidebar', description: 'Untick to hide this organisation in the app. New registrations from the app start unticked until you approve them.' },
     },
   ],
 }
