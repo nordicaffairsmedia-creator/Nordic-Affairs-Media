@@ -1,4 +1,4 @@
-import type { CollectionBeforeChangeHook, CollectionBeforeValidateHook, CollectionConfig, FieldAccess } from 'payload'
+import type { CollectionBeforeChangeHook, CollectionBeforeValidateHook, CollectionConfig, FieldAccess, PayloadRequest } from 'payload'
 import { anyone, hasRole, staff } from '@/access/roles'
 
 /**
@@ -143,6 +143,20 @@ export const CommunitySongs: CollectionConfig = {
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 /** People who tapped "Join" on a community page. The app can add an entry only; staff read and export. */
+type EndpointReq = PayloadRequest
+/** Signed up in the app (their email is in App sign-ups) or already joined something. */
+async function isAppUser(req: EndpointReq, email: string): Promise<boolean> {
+  const a = await req.payload.find({ collection: 'app-registrations', where: { email: { equals: email } }, limit: 1, depth: 0, overrideAccess: true })
+  if (a.totalDocs) return true
+  const j = await req.payload.find({ collection: 'community-joins', where: { email: { equals: email } }, limit: 1, depth: 0, overrideAccess: true })
+  return j.totalDocs > 0
+}
+async function isMember(req: EndpointReq, kind: string, slug: string, email: string): Promise<boolean> {
+  const key = kind === 'organisation' ? `${email}|org:${slug}` : `${email}|${slug}`
+  const r = await req.payload.find({ collection: 'community-joins', where: { key: { equals: key } }, limit: 1, depth: 0, overrideAccess: true })
+  return r.totalDocs > 0
+}
+
 export const CommunityJoins: CollectionConfig = {
   slug: 'community-joins',
   labels: { singular: 'Community member', plural: 'Community members' },
@@ -156,8 +170,7 @@ export const CommunityJoins: CollectionConfig = {
   access: { read: staff, create: () => true, update: staff, delete: staff },
   endpoints: [
     {
-      // Members of a community see who else joined: first names only. Emails never leave the server,
-      // and the caller must be a member themselves (their email is checked against the join list).
+      // Anyone who signed up in the app can see who joined a community: first names only, never emails.
       path: '/members',
       method: 'get',
       handler: async (req) => {
@@ -166,22 +179,90 @@ export const CommunityJoins: CollectionConfig = {
         const slug = slugify(String(q.slug ?? ''))
         const email = String(q.email ?? '').trim().toLowerCase()
         if (!slug || !EMAIL.test(email)) return Response.json({ error: 'Bad request' }, { status: 400 })
-        const key = kind === 'organisation' ? `${email}|org:${slug}` : `${email}|${slug}`
-        const me = await req.payload.find({ collection: 'community-joins', where: { key: { equals: key } }, limit: 1, depth: 0, overrideAccess: true })
-        if (!me.totalDocs) return Response.json({ error: 'Join first' }, { status: 403 })
+        if (!(await isAppUser(req, email))) return Response.json({ error: 'Sign up first' }, { status: 403 })
         const all = await req.payload.find({
           collection: 'community-joins',
           where: { and: [{ communitySlug: { equals: slug } }, { kind: { equals: kind } }] },
-          limit: 200,
+          limit: 300,
           depth: 0,
           sort: '-createdAt',
           overrideAccess: true,
         })
-        const members = all.docs.map((d) => {
-          const first = String((d as { name?: string }).name ?? '').trim().split(/\s+/)[0] ?? ''
-          return first.slice(0, 30)
-        }).filter(Boolean)
+        const members = all.docs
+          .map((d) => String((d as { name?: string }).name ?? '').trim().split(/\s+/)[0]?.slice(0, 30) ?? '')
+          .filter(Boolean)
         return Response.json({ count: all.totalDocs, members })
+      },
+    },
+    {
+      // Group chat of one community: only members read it.
+      path: '/chat',
+      method: 'get',
+      handler: async (req) => {
+        const q = (req.query ?? {}) as Record<string, unknown>
+        const kind = q.kind === 'organisation' ? 'organisation' : 'community'
+        const slug = slugify(String(q.slug ?? ''))
+        const email = String(q.email ?? '').trim().toLowerCase()
+        if (!slug || !EMAIL.test(email)) return Response.json({ error: 'Bad request' }, { status: 400 })
+        if (!(await isMember(req, kind, slug, email))) return Response.json({ error: 'Join first' }, { status: 403 })
+        const r = await req.payload.find({
+          collection: 'community-messages',
+          where: { and: [{ communitySlug: { equals: slug } }, { kind: { equals: kind } }] },
+          limit: 80,
+          depth: 0,
+          sort: '-createdAt',
+          overrideAccess: true,
+        })
+        const messages = r.docs
+          .map((d) => {
+            const m = d as { id: string | number; name?: string; email?: string; text?: string; createdAt?: string }
+            return { id: String(m.id), name: String(m.name ?? ''), text: String(m.text ?? ''), at: m.createdAt ?? '', mine: m.email === email }
+          })
+          .reverse()
+        return Response.json({ messages })
+      },
+    },
+    {
+      path: '/chat',
+      method: 'post',
+      handler: async (req) => {
+        let body: Record<string, unknown> = {}
+        try {
+          body = ((await req.json?.()) ?? {}) as Record<string, unknown>
+        } catch {
+          return Response.json({ error: 'Bad request' }, { status: 400 })
+        }
+        const kind = body.kind === 'organisation' ? 'organisation' : 'community'
+        const slug = slugify(String(body.slug ?? ''))
+        const email = String(body.email ?? '').trim().toLowerCase()
+        const text = String(body.text ?? '').trim().slice(0, 500)
+        if (!slug || !EMAIL.test(email) || !text) return Response.json({ error: 'Bad request' }, { status: 400 })
+        if (!(await isMember(req, kind, slug, email))) return Response.json({ error: 'Join first' }, { status: 403 })
+        // slow down floods: one message every 2 seconds per person
+        const last = await req.payload.find({
+          collection: 'community-messages',
+          where: { email: { equals: email } },
+          limit: 1,
+          sort: '-createdAt',
+          depth: 0,
+          overrideAccess: true,
+        })
+        const t = (last.docs[0] as { createdAt?: string } | undefined)?.createdAt
+        if (t && Date.now() - new Date(t).getTime() < 2000) return Response.json({ error: 'Slow down' }, { status: 429 })
+        const join = await req.payload.find({
+          collection: 'community-joins',
+          where: { key: { equals: kind === 'organisation' ? `${email}|org:${slug}` : `${email}|${slug}` } },
+          limit: 1,
+          depth: 0,
+          overrideAccess: true,
+        })
+        const name = String((join.docs[0] as { name?: string } | undefined)?.name ?? 'Member').split(/\s+/)[0]!.slice(0, 30)
+        await req.payload.create({
+          collection: 'community-messages',
+          data: { kind, communitySlug: slug, name, email, text },
+          overrideAccess: true,
+        })
+        return Response.json({ ok: true })
       },
     },
   ],
@@ -371,5 +452,34 @@ export const Organisations: CollectionConfig = {
       defaultValue: true,
       admin: { position: 'sidebar', description: 'Untick to hide this organisation in the app. New registrations from the app start unticked until you approve them.' },
     },
+  ],
+}
+
+/** Messages of the in-app group chat. Members write through the app; staff can read and delete (moderation). */
+export const CommunityMessages: CollectionConfig = {
+  slug: 'community-messages',
+  labels: { singular: 'Chat message', plural: 'Chat messages' },
+  defaultSort: '-createdAt',
+  admin: {
+    group: 'Communities',
+    useAsTitle: 'text',
+    defaultColumns: ['communitySlug', 'name', 'text', 'createdAt'],
+    description: 'Messages of the group chat inside each community / organisation. Delete a message here to remove it from the chat.',
+  },
+  access: { read: staff, create: staff, update: staff, delete: staff },
+  fields: [
+    {
+      name: 'kind',
+      type: 'select',
+      defaultValue: 'community',
+      options: [
+        { label: 'Community', value: 'community' },
+        { label: 'Organisation', value: 'organisation' },
+      ],
+    },
+    { name: 'communitySlug', label: 'Community / organisation', type: 'text', required: true, index: true },
+    { name: 'name', type: 'text', required: true },
+    { name: 'email', type: 'email', required: true, index: true },
+    { name: 'text', type: 'textarea', required: true },
   ],
 }
