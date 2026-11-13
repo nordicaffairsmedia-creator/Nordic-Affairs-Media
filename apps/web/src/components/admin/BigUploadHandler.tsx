@@ -4,13 +4,13 @@ import { useConfig, useUploadHandlers } from '@payloadcms/ui'
 import { useEffect, useState } from 'react'
 
 /**
- * "Create New" in Videos & audio, Documents and Media: no size limit.
+ * "Create New" in Videos & audio, Documents, Media and Community songs: no size limit.
  * Small files go as one piece (as Payload does). Files over 100 MB go to Cloudflare in pieces, 12 at a
  * time, to the exact storage name Payload approved, so they can be any size up to Cloudflare's 5 TB.
  */
 const BIG = 100 * 1024 * 1024
 const PART_CONCURRENCY = 12
-const SLUGS = ['videos', 'documents', 'media'] as const
+const SLUGS = ['videos', 'documents', 'media', 'community-songs'] as const
 
 const NO_STORAGE =
   'Cloudflare storage exceeded. Please add more GB: in Cloudflare open R2 > Billing and add a payment method or a bigger plan, then upload again.'
