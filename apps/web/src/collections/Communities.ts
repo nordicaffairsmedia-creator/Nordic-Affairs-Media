@@ -1,4 +1,5 @@
 import type { CollectionBeforeChangeHook, CollectionBeforeValidateHook, CollectionConfig, FieldAccess, PayloadRequest } from 'payload'
+import { createHash } from 'node:crypto'
 import { anyone, hasRole, staff } from '@/access/roles'
 
 /**
@@ -216,10 +217,55 @@ export const CommunityJoins: CollectionConfig = {
         const messages = r.docs
           .map((d) => {
             const m = d as { id: string | number; name?: string; email?: string; text?: string; createdAt?: string }
-            return { id: String(m.id), name: String(m.name ?? ''), text: String(m.text ?? ''), at: m.createdAt ?? '', mine: m.email === email }
+            return {
+              id: String(m.id),
+              name: String(m.name ?? ''),
+              text: String(m.text ?? ''),
+              at: m.createdAt ?? '',
+              mine: m.email === email,
+              // anonymous sender id so the app can offer "block this person" without ever seeing an email
+              by: createHash('sha256').update(String(m.email ?? '')).digest('hex').slice(0, 12),
+            }
           })
           .reverse()
         return Response.json({ messages })
+      },
+    },
+    {
+      // A member reports a chat message. Staff see it under Communities -> Chat reports and can delete the message.
+      path: '/report',
+      method: 'post',
+      handler: async (req) => {
+        let body: Record<string, unknown> = {}
+        try {
+          body = ((await req.json?.()) ?? {}) as Record<string, unknown>
+        } catch {
+          return Response.json({ error: 'Bad request' }, { status: 400 })
+        }
+        const kind = body.kind === 'organisation' ? 'organisation' : 'community'
+        const slug = slugify(String(body.slug ?? ''))
+        const email = String(body.email ?? '').trim().toLowerCase()
+        const messageId = String(body.messageId ?? '').trim().slice(0, 60)
+        const reason = String(body.reason ?? '').trim().slice(0, 300)
+        if (!slug || !EMAIL.test(email) || !messageId) return Response.json({ error: 'Bad request' }, { status: 400 })
+        if (!(await isMember(req, kind, slug, email))) return Response.json({ error: 'Join first' }, { status: 403 })
+        const found = await req.payload.find({ collection: 'community-messages', where: { id: { equals: messageId } }, limit: 1, depth: 0, overrideAccess: true })
+        const msg = found.docs[0] as { name?: string; email?: string; text?: string } | undefined
+        if (!msg) return Response.json({ error: 'Not found' }, { status: 404 })
+        await req.payload.create({
+          collection: 'chat-reports',
+          data: {
+            communitySlug: slug,
+            messageId,
+            messageText: String(msg.text ?? '').slice(0, 500),
+            messageAuthor: String(msg.name ?? ''),
+            messageAuthorEmail: String(msg.email ?? ''),
+            reporterEmail: email,
+            reason,
+          },
+          overrideAccess: true,
+        })
+        return Response.json({ ok: true })
       },
     },
     {
@@ -481,5 +527,60 @@ export const CommunityMessages: CollectionConfig = {
     { name: 'name', type: 'text', required: true },
     { name: 'email', type: 'email', required: true, index: true },
     { name: 'text', type: 'textarea', required: true },
+  ],
+}
+
+/** A member reported a chat message (Apple requires a report function for user-written content). */
+export const ChatReports: CollectionConfig = {
+  slug: 'chat-reports',
+  labels: { singular: 'Chat report', plural: 'Chat reports' },
+  defaultSort: '-createdAt',
+  admin: {
+    group: 'Communities',
+    useAsTitle: 'messageText',
+    defaultColumns: ['communitySlug', 'messageAuthor', 'messageText', 'status', 'createdAt'],
+    description:
+      'Messages that members reported in a group chat. Open the message under Communities -> Chat messages and delete it if it breaks the rules; then set the status here to Handled. Aim to react within 24 hours.',
+  },
+  access: { read: staff, create: staff, update: staff, delete: staff },
+  fields: [
+    { name: 'status', type: 'select', defaultValue: 'new', options: [{ label: 'New', value: 'new' }, { label: 'Handled', value: 'handled' }], admin: { position: 'sidebar' } },
+    { name: 'communitySlug', label: 'Community / organisation', type: 'text', index: true },
+    { name: 'messageId', type: 'text' },
+    { name: 'messageText', type: 'textarea' },
+    { name: 'messageAuthor', type: 'text' },
+    { name: 'messageAuthorEmail', type: 'email' },
+    { name: 'reporterEmail', type: 'email' },
+    { name: 'reason', type: 'textarea' },
+  ],
+}
+
+/** "Delete my account" requests from the app (Apple requires an in-app way to ask). Staff erase the person's data and mark it done. */
+export const DeletionRequests: CollectionConfig = {
+  slug: 'deletion-requests',
+  labels: { singular: 'Account deletion request', plural: 'Account deletion requests' },
+  defaultSort: '-createdAt',
+  admin: {
+    group: 'Inbox',
+    useAsTitle: 'email',
+    defaultColumns: ['email', 'name', 'status', 'createdAt'],
+    description:
+      'People who asked in the app to delete their account. For each one: delete their rows under App sign-ups, Community members and Chat messages (search by email), then set the status to Done. Finish within 30 days (aim for a few days).',
+  },
+  access: { read: staff, create: () => true, update: staff, delete: staff },
+  hooks: {
+    beforeValidate: [
+      ({ data, operation }) => {
+        if (operation !== 'create' || !data) return data
+        const email = clean(data.email, 200).toLowerCase()
+        if (!EMAIL.test(email)) throw new Error('Please enter a valid email address.')
+        return { email, name: clean(data.name, 80), status: 'new' }
+      },
+    ],
+  },
+  fields: [
+    { name: 'email', type: 'email', required: true, index: true },
+    { name: 'name', type: 'text' },
+    { name: 'status', type: 'select', defaultValue: 'new', options: [{ label: 'New', value: 'new' }, { label: 'Done', value: 'done' }], admin: { position: 'sidebar' } },
   ],
 }

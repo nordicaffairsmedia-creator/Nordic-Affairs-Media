@@ -23,7 +23,7 @@ import { Articles } from './collections/Articles'
 import { Publications } from './collections/Publications'
 import { Events } from './collections/Events'
 import { AppRegistrations } from './collections/AppRegistrations'
-import { Communities, CommunityJoins, CommunityMessages, CommunitySongs, Organisations } from './collections/Communities'
+import { ChatReports, Communities, CommunityJoins, CommunityMessages, CommunitySongs, DeletionRequests, Organisations } from './collections/Communities'
 import { PromoCodes } from './collections/PromoCodes'
 import { Pages, Redirects } from './collections/Pages'
 import {
@@ -273,6 +273,8 @@ export default buildConfig({
     CommunitySongs,
     CommunityJoins,
     CommunityMessages,
+    ChatReports,
+    DeletionRequests,
     EmailCampaigns,
     EmailFeedback,
     EmailFiles,
